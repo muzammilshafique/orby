@@ -51,6 +51,13 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
     QString tempDir = QDir::tempPath();
     m_tempBinaryPath = QDir(tempDir).filePath(processName);
 
+    // Create necessary parent subdirectories if the processName contains slashes
+    QFileInfo fileInfo(m_tempBinaryPath);
+    QDir dir = fileInfo.dir();
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
     // Remove existing file if any
     if (QFile::exists(m_tempBinaryPath)) {
         QFile::remove(m_tempBinaryPath);
