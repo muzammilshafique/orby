@@ -58,6 +58,22 @@ To build or run **Orby**, your system must have the Qt6 development packages and
    Orby-Linux
    ```
 
+### Manual Build (Without Installing)
+
+If you prefer to compile the binary manually without installing the desktop entry:
+
+```bash
+git clone https://github.com/muzammilshafique/orby.git
+cd orby
+mkdir build 
+cd build
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . -j$(nproc)
+
+# Run the compiled binary
+./Orby-Linux
+```
+
 ---
 
 ## 📂 Project Structure
