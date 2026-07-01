@@ -1,0 +1,36 @@
+# Build directories and outputs
+build/
+cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+compile_commands.json
+
+# Qt/QML generated caches
+.qmlcache/
+.qtc_clangd/
+
+# IDE and Editor files
+*.pro.user
+*.user
+*.autosave
+.cache/
+.vscode/
+.idea/
+.DS_Store
+
+# Compiled object files and binaries
+*.o
+*.obj
+*.a
+*.so
+*.dll
+*.exe
+*.pdb
+*.out
+
+# Specific executables
+appQuestify
+Questify-Linux
+Orby-Linux
