@@ -31,12 +31,8 @@ private:
     bool m_isSpoofing;
     QString m_currentProcessName;
 
-#ifdef Q_OS_WIN
     QProcess m_process;
     QString m_tempBinaryPath;
-#else
-    qint64 m_spoofedPid;
-#endif
 };
 
 #endif // PROCESSSPOOFER_H

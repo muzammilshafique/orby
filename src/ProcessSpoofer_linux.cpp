@@ -1,14 +1,18 @@
 #include "ProcessSpoofer.h"
+#include <QFile>
+#include <QDir>
+#include <QStandardPaths>
 #include <QDebug>
-#include <sys/prctl.h>
-#include <sys/types.h>
-#include <signal.h>
-#include <unistd.h>
-#include <sys/wait.h>
+#include <QFileInfo>
 
 ProcessSpoofer::ProcessSpoofer(QObject *parent)
-    : QObject(parent), m_isSpoofing(false), m_spoofedPid(0)
+    : QObject(parent), m_isSpoofing(false)
 {
+    connect(&m_process, &QProcess::stateChanged, this, [this](QProcess::ProcessState state) {
+        if (state == QProcess::NotRunning && m_isSpoofing) {
+            stopSpoofing();
+        }
+    });
 }
 
 ProcessSpoofer::~ProcessSpoofer()
@@ -37,41 +41,67 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
         return;
     }
 
-    pid_t pid = fork();
-    if (pid == -1) {
-        emit errorOccurred("Failed to fork child process.");
+    // Find the system sleep binary
+    QString sleepPath = QStandardPaths::findExecutable("sleep");
+    if (sleepPath.isEmpty()) {
+        emit errorOccurred("Could not find 'sleep' executable on system.");
         return;
-    } else if (pid == 0) {
-        // Child process
-        // prctl PR_SET_NAME accepts up to 15 characters
-        QByteArray nameBytes = processName.toUtf8();
-        if (nameBytes.length() > 15) {
-            nameBytes.truncate(15);
-        }
-        
-        prctl(PR_SET_NAME, nameBytes.constData(), 0, 0, 0);
-
-        // Keep the process alive indefinitely with minimal resource usage
-        while (true) {
-            sleep(60);
-        }
-        _exit(0);
-    } else {
-        // Parent process
-        m_spoofedPid = pid;
-        m_isSpoofing = true;
-        m_currentProcessName = processName;
-        emit isSpoofingChanged();
-        emit currentProcessNameChanged();
     }
+
+    QString tempDir = QDir::tempPath();
+    m_tempBinaryPath = QDir(tempDir).filePath(processName);
+
+    // Create necessary parent subdirectories if the processName contains slashes
+    QFileInfo fileInfo(m_tempBinaryPath);
+    QDir dir = fileInfo.dir();
+    if (!dir.exists()) {
+        dir.mkpath(".");
+    }
+
+    // Remove existing file if any
+    if (QFile::exists(m_tempBinaryPath)) {
+        QFile::remove(m_tempBinaryPath);
+    }
+
+    // Copy sleep binary to the temporary path with the target name
+    if (!QFile::copy(sleepPath, m_tempBinaryPath)) {
+        emit errorOccurred("Failed to copy executable to " + m_tempBinaryPath);
+        return;
+    }
+
+    // Ensure it is executable
+    QFile::setPermissions(m_tempBinaryPath, QFileDevice::ReadOwner | QFileDevice::WriteOwner | QFileDevice::ExeOwner | QFileDevice::ReadUser | QFileDevice::ExeUser);
+
+    // Start the process
+    m_process.setProgram(m_tempBinaryPath);
+    m_process.setArguments(QStringList() << "31536000"); // Sleep for 1 year
+    m_process.start();
+
+    if (!m_process.waitForStarted()) {
+        emit errorOccurred("Failed to start spoofed process.");
+        QFile::remove(m_tempBinaryPath);
+        return;
+    }
+
+    m_isSpoofing = true;
+    m_currentProcessName = processName;
+    emit isSpoofingChanged();
+    emit currentProcessNameChanged();
 }
 
 void ProcessSpoofer::stopSpoofing()
 {
-    if (m_spoofedPid > 0) {
-        kill(m_spoofedPid, SIGKILL);
-        waitpid(m_spoofedPid, nullptr, 0);
-        m_spoofedPid = 0;
+    if (m_process.state() != QProcess::NotRunning) {
+        m_process.terminate();
+        if (!m_process.waitForFinished(1000)) {
+            m_process.kill();
+            m_process.waitForFinished(1000);
+        }
+    }
+
+    if (!m_tempBinaryPath.isEmpty() && QFile::exists(m_tempBinaryPath)) {
+        QFile::remove(m_tempBinaryPath);
+        m_tempBinaryPath.clear();
     }
 
     if (m_isSpoofing) {
