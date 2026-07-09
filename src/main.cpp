@@ -7,8 +7,8 @@
 int main(int argc, char *argv[])
 {
     QGuiApplication app(argc, argv);
-    app.setOrganizationName("Antigravity");
-    app.setOrganizationDomain("antigravity.org");
+    app.setOrganizationName("orby");
+    app.setOrganizationDomain("orby.org");
     app.setApplicationName("Orby");
 
     qmlRegisterType<ProcessSpoofer>("Orby", 1, 0, "ProcessSpoofer");
