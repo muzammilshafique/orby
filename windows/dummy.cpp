@@ -1,9 +1,8 @@
 #include <windows.h>
 
 // Ultra-minimal Win32 dummy process.
-// No CRT, no console, no allocations — just an infinite kernel wait.
-// Compiled with /Os and /ENTRY:WinMainCRTStartup for smallest possible binary.
-#pragma comment(linker, "/SUBSYSTEM:WINDOWS")
+// No console window, no allocations — just an infinite kernel wait.
+// Subsystem is set to WINDOWS via CMake (WIN32_EXECUTABLE TRUE).
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     (void)hInstance;
@@ -11,9 +10,9 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     (void)lpCmdLine;
     (void)nCmdShow;
 
-    // Single kernel wait — zero CPU, zero wakeups, zero heap allocations.
+    // Sleep infinitely — zero CPU, zero wakeups, zero heap allocations.
     // The process will be terminated externally via TerminateProcess/SIGTERM.
-    WaitForSingleObject(GetCurrentThread(), INFINITE);
+    Sleep(INFINITE);
 
     return 0;
 }
