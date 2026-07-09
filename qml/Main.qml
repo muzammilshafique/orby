@@ -6,26 +6,72 @@ import Orby 1.0
 
 Window {
     id: window
-    width: 600
-    height: 700
+    width: 520
+    height: 740
     visible: true
-    title: "Orby - Discord Game Spoofer"
-    color: "#0a0a0c" // Very dark gray, almost black
-    
-    // Smooth window rendering
-    // Native window styling is used so no frameless flags are needed
+    title: "Orby"
+    color: md.background
 
+    // ════════════════════════════════════════════════════════════════
+    //  Material Design 3 — Color Tokens
+    //  Note: QML treats "on" + uppercase as signal handlers,
+    //  so M3 "on*" tokens are renamed to "*Fg" (foreground).
+    // ════════════════════════════════════════════════════════════════
+    QtObject {
+        id: md
+
+        // Primary
+        readonly property color primary:              "#D0BCFF"
+        readonly property color primaryFg:             "#381E72"
+        readonly property color primaryContainer:      "#4F378B"
+        readonly property color primaryContainerFg:    "#EADDFF"
+
+        // Secondary
+        readonly property color secondary:             "#CCC2DC"
+        readonly property color secondaryFg:           "#332D41"
+        readonly property color secondaryContainer:    "#4A4458"
+
+        // Tertiary (Teal accent)
+        readonly property color tertiary:              "#7DD3C0"
+        readonly property color tertiaryContainer:     "#1A3A34"
+        readonly property color tertiaryFg:            "#003731"
+
+        // Error
+        readonly property color error:                 "#F2B8B5"
+        readonly property color errorContainer:        "#8C1D18"
+
+        // Surface system
+        readonly property color background:            "#141218"
+        readonly property color surface:               "#141218"
+        readonly property color surfaceContainer:      "#211F26"
+        readonly property color surfaceContainerHigh:  "#2B2930"
+        readonly property color surfaceContainerHighest: "#36343B"
+        readonly property color surfaceBright:         "#3B383E"
+
+        // Foreground / On-surface
+        readonly property color surfaceFg:             "#E6E1E5"
+        readonly property color surfaceVariantFg:      "#CAC4D0"
+        readonly property color outline:               "#938F99"
+        readonly property color outlineVariant:        "#49454F"
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Backend instances
+    // ════════════════════════════════════════════════════════════════
     DiscordApi {
         id: discordApi
         Component.onCompleted: fetchGames()
-        onErrorOccurred: (msg) => console.log("Discord API Error:", msg)
+        onErrorOccurred: (msg) => console.warn("[DiscordApi]", msg)
     }
 
     ProcessSpoofer {
         id: spoofer
-        onErrorOccurred: (msg) => console.log("Spoofer Error:", msg)
+        onErrorOccurred: (msg) => console.warn("[Spoofer]", msg)
     }
 
+    // ════════════════════════════════════════════════════════════════
+    //  Filtering logic
+    // ════════════════════════════════════════════════════════════════
     property var filteredGames: []
 
     function updateFilter() {
@@ -40,241 +86,458 @@ Window {
 
     Connections {
         target: discordApi
-        function onGamesChanged() {
-            updateFilter()
-        }
+        function onGamesChanged() { updateFilter() }
     }
 
+    // ════════════════════════════════════════════════════════════════
+    //  Main Layout
+    // ════════════════════════════════════════════════════════════════
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 24
-        spacing: 20
+        anchors.margins: 20
+        spacing: 16
 
-        // Header
+        // ── Top App Bar ──
         ColumnLayout {
-            spacing: 8
+            spacing: 4
+            Layout.bottomMargin: 4
+
             Text {
-                text: "Discord Presence"
-                color: "#ffffff"
+                text: "Orby"
+                color: md.surfaceFg
                 font.family: "Inter"
-                font.pixelSize: 28
+                font.pixelSize: 30
                 font.weight: Font.Bold
-                font.letterSpacing: -0.5
+                font.letterSpacing: -0.8
             }
             Text {
-                text: "Spoof your activity status natively on Linux."
-                color: "#8e8e93"
+                text: "Discord Game Presence Spoofer"
+                color: md.surfaceVariantFg
                 font.family: "Inter"
                 font.pixelSize: 14
+                font.weight: Font.Normal
             }
         }
 
-        // Active Spoofer Banner
+        // ── Status Card ──
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 70
-            radius: 12
-            color: spoofer.isSpoofing ? "#1a2a1a" : "#1a1a1e"
-            border.color: spoofer.isSpoofing ? "#336633" : "#2a2a2e"
+            Layout.preferredHeight: 80
+            radius: 20
+            color: spoofer.isSpoofing ? md.tertiaryContainer : md.surfaceContainer
+            border.color: spoofer.isSpoofing ? md.tertiary : md.outlineVariant
             border.width: 1
-            visible: true
-            
-            Behavior on color { ColorAnimation { duration: 300; easing.type: Easing.OutQuint } }
-            Behavior on border.color { ColorAnimation { duration: 300; easing.type: Easing.OutQuint } }
+
+            Behavior on color {
+                ColorAnimation { duration: 350; easing.type: Easing.OutCubic }
+            }
+            Behavior on border.color {
+                ColorAnimation { duration: 350; easing.type: Easing.OutCubic }
+            }
 
             RowLayout {
                 anchors.fill: parent
-                anchors.margins: 16
-                
+                anchors.leftMargin: 20
+                anchors.rightMargin: 16
+                anchors.topMargin: 12
+                anchors.bottomMargin: 12
+
+                // Pulsing status dot
+                Rectangle {
+                    width: 10; height: 10
+                    radius: 5
+                    color: spoofer.isSpoofing ? md.tertiary : md.outline
+                    Layout.alignment: Qt.AlignVCenter
+
+                    SequentialAnimation on opacity {
+                        running: spoofer.isSpoofing
+                        loops: Animation.Infinite
+                        NumberAnimation { to: 0.3; duration: 900; easing.type: Easing.InOutSine }
+                        NumberAnimation { to: 1.0; duration: 900; easing.type: Easing.InOutSine }
+                    }
+
+                    // Reset opacity when not spoofing
+                    Behavior on color {
+                        ColorAnimation { duration: 250 }
+                    }
+
+                    // Ensure full opacity when not animating
+                    Component.onCompleted: opacity = 1.0
+                    onColorChanged: if (!spoofer.isSpoofing) opacity = 1.0
+                }
+
+                // Status text
                 ColumnLayout {
-                    spacing: 4
+                    spacing: 2
+                    Layout.leftMargin: 12
+                    Layout.fillWidth: true
+
                     Text {
-                        text: spoofer.isSpoofing ? "Currently Spoofing" : "Not Spoofing"
-                        color: spoofer.isSpoofing ? "#4ade80" : "#888888"
+                        text: spoofer.isSpoofing ? "CURRENTLY SPOOFING" : "INACTIVE"
+                        color: spoofer.isSpoofing ? md.tertiary : md.outline
                         font.family: "Inter"
-                        font.pixelSize: 12
+                        font.pixelSize: 11
                         font.weight: Font.Bold
-                        font.capitalization: Font.AllUppercase
+                        font.letterSpacing: 1.2
+
+                        Behavior on color {
+                            ColorAnimation { duration: 250; easing.type: Easing.OutCubic }
+                        }
                     }
                     Text {
-                        text: spoofer.isSpoofing ? spoofer.currentProcessName : "Select a game below"
-                        color: "#ffffff"
+                        text: spoofer.isSpoofing ? spoofer.currentProcessName : "Select a game to begin"
+                        color: md.surfaceFg
                         font.family: "Inter"
-                        font.pixelSize: 18
+                        font.pixelSize: 16
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                         Layout.fillWidth: true
                     }
                 }
-                
-                Item { Layout.fillWidth: true }
-                
+
+                // Stop pill button
                 Button {
                     visible: spoofer.isSpoofing
                     text: "Stop"
                     font.family: "Inter"
                     font.weight: Font.DemiBold
-                    Layout.preferredWidth: 80
+                    font.pixelSize: 13
+                    Layout.preferredWidth: 72
                     Layout.preferredHeight: 36
-                    
+                    Layout.alignment: Qt.AlignVCenter
+
                     background: Rectangle {
-                        color: parent.hovered ? "#ff4444" : "#cc3333"
-                        radius: 6
+                        radius: 18
+                        color: parent.hovered ? "#5C1B1E" : md.errorContainer
                         Behavior on color { ColorAnimation { duration: 200 } }
                     }
                     contentItem: Text {
                         text: parent.text
-                        color: "white"
+                        color: md.error
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                         font: parent.font
                     }
+
                     onClicked: spoofer.stopSpoofing()
                 }
             }
         }
 
-        // Search Input
+        // ── Search Bar (M3 fully rounded) ──
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 44
-            color: "#16161a"
-            border.color: searchInput.activeFocus ? "#5865F2" : "#2a2a2e"
-            border.width: 1
-            radius: 8
-            
-            Behavior on border.color { ColorAnimation { duration: 200 } }
+            Layout.preferredHeight: 52
+            radius: 28
+            color: md.surfaceContainerHigh
+            border.color: searchInput.activeFocus ? md.primary : "transparent"
+            border.width: searchInput.activeFocus ? 2 : 0
 
-            TextInput {
-                id: searchInput
+            Behavior on border.color {
+                ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+            }
+
+            RowLayout {
                 anchors.fill: parent
-                anchors.margins: 12
-                verticalAlignment: TextInput.AlignVCenter
-                color: "#ffffff"
-                font.family: "Inter"
-                font.pixelSize: 15
-                selectionColor: "#5865F2"
-                selectByMouse: true
-                
+                anchors.leftMargin: 18
+                anchors.rightMargin: 18
+                spacing: 12
+
+                // Search icon
                 Text {
-                    anchors.fill: parent
-                    text: "Search games..."
-                    color: "#555555"
-                    font: parent.font
-                    verticalAlignment: TextInput.AlignVCenter
-                    visible: !parent.text && !parent.activeFocus
+                    text: "\u{1F50D}"
+                    font.pixelSize: 16
+                    color: md.surfaceVariantFg
+                    Layout.alignment: Qt.AlignVCenter
                 }
-                
-                onTextChanged: updateFilter()
+
+                TextInput {
+                    id: searchInput
+                    Layout.fillWidth: true
+                    Layout.alignment: Qt.AlignVCenter
+                    verticalAlignment: TextInput.AlignVCenter
+                    color: md.surfaceFg
+                    font.family: "Inter"
+                    font.pixelSize: 15
+                    selectionColor: md.primary
+                    selectedTextColor: md.primaryFg
+                    selectByMouse: true
+                    clip: true
+
+                    Text {
+                        anchors.fill: parent
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "Search games..."
+                        color: md.outline
+                        font: parent.font
+                        verticalAlignment: Text.AlignVCenter
+                        visible: !parent.text && !parent.activeFocus
+                    }
+
+                    onTextChanged: updateFilter()
+                }
+
+                // Clear button
+                Text {
+                    text: "✕"
+                    font.pixelSize: 14
+                    color: md.surfaceVariantFg
+                    visible: searchInput.text.length > 0
+                    Layout.alignment: Qt.AlignVCenter
+
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            searchInput.text = ""
+                            searchInput.focus = false
+                        }
+                    }
+                }
             }
         }
 
-        // List
+        // ── Game count label ──
+        Text {
+            text: {
+                if (discordApi.isLoading) return "Loading..."
+                let total = gameListView.count
+                return total + " game" + (total !== 1 ? "s" : "") + (searchInput.text ? " found" : " available")
+            }
+            color: md.outline
+            font.family: "Inter"
+            font.pixelSize: 12
+            font.weight: Font.Medium
+            Layout.leftMargin: 4
+        }
+
+        // ── Game List ──
         Rectangle {
             Layout.fillWidth: true
             Layout.fillHeight: true
             color: "transparent"
             clip: true
-            
+
             ListView {
                 id: gameListView
                 anchors.fill: parent
                 spacing: 6
                 model: filteredGames
                 boundsBehavior: Flickable.StopAtBounds
-                
+                cacheBuffer: 400
+                reuseItems: true
+
+                // Custom thin scrollbar
+                ScrollBar.vertical: ScrollBar {
+                    policy: ScrollBar.AsNeeded
+                    contentItem: Rectangle {
+                        implicitWidth: 4
+                        radius: 2
+                        color: md.outlineVariant
+                        opacity: parent.active ? 0.8 : 0.0
+                        Behavior on opacity {
+                            NumberAnimation { duration: 300 }
+                        }
+                    }
+                }
+
                 delegate: Rectangle {
+                    id: gameTile
                     width: ListView.view.width
-                    height: 60
-                    radius: 8
-                    color: delegateMouseArea.containsMouse ? "#1c1c20" : "transparent"
-                    border.color: delegateMouseArea.containsMouse ? "#3a3a40" : "transparent"
+                    height: 68
+                    radius: 16
+                    color: tileMouseArea.containsMouse ? md.surfaceContainerHigh : md.surfaceContainer
+                    border.color: tileMouseArea.containsMouse ? md.outlineVariant : "transparent"
                     border.width: 1
-                    
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    
+
+                    Behavior on color {
+                        ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+                    }
+                    Behavior on border.color {
+                        ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+                    }
+
                     RowLayout {
                         anchors.fill: parent
-                        anchors.margins: 12
-                        
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 12
+                        anchors.topMargin: 10
+                        anchors.bottomMargin: 10
+
+                        // Game icon placeholder — first letter
+                        Rectangle {
+                            width: 42; height: 42
+                            radius: 12
+                            color: md.primaryContainer
+                            Layout.alignment: Qt.AlignVCenter
+
+                            Text {
+                                anchors.centerIn: parent
+                                text: modelData.name ? modelData.name.charAt(0).toUpperCase() : "?"
+                                color: md.primaryContainerFg
+                                font.family: "Inter"
+                                font.pixelSize: 18
+                                font.weight: Font.Bold
+                            }
+                        }
+
+                        // Game info
                         ColumnLayout {
                             spacing: 2
+                            Layout.fillWidth: true
+                            Layout.leftMargin: 12
+
                             Text {
                                 text: modelData.name
-                                color: "#ffffff"
+                                color: md.surfaceFg
                                 font.family: "Inter"
-                                font.pixelSize: 15
-                                font.weight: Font.Medium
-                                Layout.fillWidth: true
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
                                 elide: Text.ElideRight
+                                Layout.fillWidth: true
                             }
                             Text {
                                 text: modelData.primaryExecutable
-                                color: "#666666"
+                                color: md.outline
                                 font.family: "Inter"
                                 font.pixelSize: 12
-                                Layout.fillWidth: true
                                 elide: Text.ElideRight
+                                Layout.fillWidth: true
                             }
                         }
-                        
-                        Item { Layout.fillWidth: true }
-                        
+
+                        // Spoof / Active button
                         Button {
-                            text: spoofer.currentProcessName === modelData.primaryExecutable && spoofer.isSpoofing ? "Active" : "Spoof"
-                            enabled: !(spoofer.currentProcessName === modelData.primaryExecutable && spoofer.isSpoofing)
+                            id: spoofBtn
+                            property bool isActive: spoofer.currentProcessName === modelData.primaryExecutable && spoofer.isSpoofing
+
+                            text: isActive ? "Active" : "Spoof"
+                            enabled: !isActive
                             font.family: "Inter"
                             font.weight: Font.DemiBold
                             font.pixelSize: 13
-                            Layout.preferredWidth: 70
-                            Layout.preferredHeight: 32
-                            
+                            Layout.preferredWidth: 78
+                            Layout.preferredHeight: 36
+                            Layout.alignment: Qt.AlignVCenter
+
                             background: Rectangle {
-                                color: !parent.enabled ? "#2a2a2e" : (parent.hovered ? "#4752C4" : "#5865F2")
-                                radius: 6
-                                Behavior on color { ColorAnimation { duration: 150 } }
+                                radius: 18
+                                color: {
+                                    if (spoofBtn.isActive)
+                                        return md.tertiaryContainer
+                                    if (spoofBtn.hovered)
+                                        return md.primaryContainer
+                                    return md.surfaceContainerHighest
+                                }
+                                border.color: {
+                                    if (spoofBtn.isActive)
+                                        return md.tertiary
+                                    if (spoofBtn.hovered)
+                                        return md.primary
+                                    return md.outlineVariant
+                                }
+                                border.width: 1
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                }
+                                Behavior on border.color {
+                                    ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                }
                             }
+
                             contentItem: Text {
-                                text: parent.text
-                                color: !parent.enabled ? "#666666" : "#ffffff"
+                                text: spoofBtn.text
+                                color: {
+                                    if (spoofBtn.isActive)
+                                        return md.tertiary
+                                    if (spoofBtn.hovered)
+                                        return md.primary
+                                    return md.surfaceVariantFg
+                                }
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
-                                font: parent.font
+                                font: spoofBtn.font
+
+                                Behavior on color {
+                                    ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
+                                }
                             }
-                            
+
                             onClicked: {
                                 spoofer.startSpoofing(modelData.primaryExecutable)
                             }
                         }
                     }
-                    
+
                     MouseArea {
-                        id: delegateMouseArea
+                        id: tileMouseArea
                         anchors.fill: parent
                         hoverEnabled: true
                         acceptedButtons: Qt.NoButton
                     }
                 }
             }
-            
-            // Loading indicator
-            Text {
+
+            // ── Loading state ──
+            ColumnLayout {
                 anchors.centerIn: parent
-                text: "Loading verifiable games..."
-                color: "#888888"
-                font.family: "Inter"
-                font.pixelSize: 14
+                spacing: 16
                 visible: discordApi.isLoading
+
+                // Spinning indicator
+                Rectangle {
+                    width: 32; height: 32
+                    radius: 16
+                    color: "transparent"
+                    border.color: md.primary
+                    border.width: 3
+                    Layout.alignment: Qt.AlignHCenter
+
+                    // Clip to show partial arc
+                    Rectangle {
+                        width: 16; height: 16
+                        color: md.background
+                        anchors.right: parent.right
+                        anchors.top: parent.top
+                    }
+
+                    RotationAnimator on rotation {
+                        from: 0; to: 360
+                        duration: 1000
+                        loops: Animation.Infinite
+                        running: discordApi.isLoading
+                    }
+                }
+
+                Text {
+                    text: "Fetching games from Discord..."
+                    color: md.surfaceVariantFg
+                    font.family: "Inter"
+                    font.pixelSize: 14
+                    Layout.alignment: Qt.AlignHCenter
+                }
             }
-            
-            // No results
-            Text {
+
+            // ── Empty state ──
+            ColumnLayout {
                 anchors.centerIn: parent
-                text: "No games found."
-                color: "#888888"
-                font.family: "Inter"
-                font.pixelSize: 14
+                spacing: 8
                 visible: !discordApi.isLoading && gameListView.count === 0
+
+                Text {
+                    text: "🎮"
+                    font.pixelSize: 36
+                    Layout.alignment: Qt.AlignHCenter
+                }
+                Text {
+                    text: searchInput.text ? "No games match your search" : "No games available"
+                    color: md.surfaceVariantFg
+                    font.family: "Inter"
+                    font.pixelSize: 14
+                    Layout.alignment: Qt.AlignHCenter
+                }
             }
         }
     }

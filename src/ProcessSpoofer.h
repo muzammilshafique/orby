@@ -3,7 +3,14 @@
 
 #include <QObject>
 #include <QString>
+
+#ifdef Q_OS_WIN
 #include <QProcess>
+#endif
+
+#ifdef Q_OS_LINUX
+#include <sys/types.h>  // pid_t
+#endif
 
 class ProcessSpoofer : public QObject
 {
@@ -28,11 +35,19 @@ signals:
     void errorOccurred(const QString &errorMsg);
 
 private:
-    bool m_isSpoofing;
+    bool m_isSpoofing = false;
+    bool m_stopping = false;  // Re-entrancy guard
     QString m_currentProcessName;
 
+#ifdef Q_OS_WIN
     QProcess m_process;
     QString m_tempBinaryPath;
+#endif
+
+#ifdef Q_OS_LINUX
+    pid_t m_childPid = -1;
+    QString m_tempBinaryPath;
+#endif
 };
 
 #endif // PROCESSSPOOFER_H
