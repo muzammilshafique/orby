@@ -2,7 +2,7 @@
 Name=Orby
 GenericName=Discord Quest Companion
 Comment=A modern Discord Quest companion for Linux
-Exec=Orby-Linux
+Exec=orby
 Icon=orby
 Terminal=false
 Type=Application

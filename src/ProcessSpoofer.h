@@ -2,8 +2,8 @@
 #define PROCESSSPOOFER_H
 
 #include <QObject>
-#include <QProcess>
 #include <QString>
+#include <QProcess>
 
 class ProcessSpoofer : public QObject
 {
@@ -28,10 +28,15 @@ signals:
     void errorOccurred(const QString &errorMsg);
 
 private:
-    QProcess m_process;
     bool m_isSpoofing;
     QString m_currentProcessName;
+
+#ifdef Q_OS_WIN
+    QProcess m_process;
     QString m_tempBinaryPath;
+#else
+    qint64 m_spoofedPid;
+#endif
 };
 
 #endif // PROCESSSPOOFER_H

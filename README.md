@@ -1,7 +1,7 @@
 # Orby
 
 ![License](https://img.shields.io/badge/license-MIT-blue.svg)
-![Platform](https://img.shields.io/badge/platform-Linux-lightgrey.svg)
+![Platform](https://img.shields.io/badge/platform-Linux%20|%20Windows-lightgrey.svg)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
 **Orby** is a sleek, native desktop application that allows you to safely spoof background game processes. 
@@ -25,6 +25,7 @@ Perfect for completing Discord Quests without needing to install, configure, or 
 - **Save Bandwidth:** Avoid gigabytes of downloads on metered connections.
 - **Native & Fast:** Built entirely on C++ and Qt6 with a premium interface.
 - **Safe & Clean:** Processes are safely spun up locally and gracefully terminated when you press "Stop".
+- **Cross-Platform:** Core logic and UI are built on Qt, allowing full portability and native spoofing across both Linux and Windows.
 
 ---
 
@@ -35,7 +36,8 @@ To build or run **Orby**, your system must have the Qt6 development packages and
 - `qt6-base`
 - `qt6-declarative`
 - `cmake`
-- `gcc` / `make`
+- `gcc` / `make` (Linux)
+- MSVC / MinGW (Windows)
 
 ---
 
@@ -55,7 +57,7 @@ To build or run **Orby**, your system must have the Qt6 development packages and
 3. **Run Orby:**
    You can now launch Orby directly from your application menu, or via terminal:
    ```bash
-   Orby-Linux
+   orby
    ```
 
 ### Manual Build (Without Installing)
@@ -71,8 +73,29 @@ cmake -DCMAKE_BUILD_TYPE=Release ..
 cmake --build . -j$(nproc)
 
 # Run the compiled binary
-./Orby-Linux
+./orby
 ```
+
+### Windows
+
+1. **Install Dependencies:**
+   - Install **Qt 6** using the Qt Online Installer (include Desktop MSVC or MinGW).
+   - Install **CMake**.
+2. **Clone and Build:**
+   Open a Developer Command Prompt (or Qt Command Prompt) and run:
+   ```cmd
+   git clone https://github.com/muzammilshafique/orby.git
+   cd orby
+   mkdir build 
+   cd build
+   cmake -DCMAKE_BUILD_TYPE=Release ..
+   cmake --build . --config Release
+   ```
+3. **Run Orby:**
+   ```cmd
+   Release\Orby-Windows.exe
+   ```
+   *(Note: The background process spoofing on Windows uses a minimal `dummy.exe` that compiles seamlessly alongside the main application).*
 
 ---
 
@@ -85,6 +108,7 @@ Orby/
 ├── screenshots/          # Showcase images
 ├── icons/                # SVG application icon
 ├── linux/                # Desktop entry, install, and uninstall scripts
+├── windows/              # Minimal Win32 dummy process for Windows spoofing
 ├── CMakeLists.txt        # CMake build configuration
 ├── README.md             # Project documentation
 ├── LICENSE               # MIT License file

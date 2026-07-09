@@ -8,10 +8,16 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network)
 
 qt_standard_project_setup()
 
+if(WIN32)
+    set(SPOOFER_SRC src/ProcessSpoofer_windows.cpp)
+else()
+    set(SPOOFER_SRC src/ProcessSpoofer_linux.cpp)
+endif()
+
 qt_add_executable(appOrby
     src/main.cpp
     src/ProcessSpoofer.h
-    src/ProcessSpoofer.cpp
+    ${SPOOFER_SRC}
     src/DiscordApi.h
     src/DiscordApi.cpp
 )
@@ -27,4 +33,12 @@ target_link_libraries(appOrby
     PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Network
 )
 
-set_target_properties(appOrby PROPERTIES OUTPUT_NAME "Orby-Linux")
+if(WIN32)
+    set_target_properties(appOrby PROPERTIES OUTPUT_NAME "Orby-Windows")
+    set_target_properties(appOrby PROPERTIES WIN32_EXECUTABLE TRUE)
+    
+    add_executable(dummy WIN32 windows/dummy.cpp)
+    set_target_properties(dummy PROPERTIES WIN32_EXECUTABLE TRUE)
+else()
+    set_target_properties(appOrby PROPERTIES OUTPUT_NAME "orby")
+endif()

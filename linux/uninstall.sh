@@ -27,11 +27,11 @@ fi
 
 log_info "Uninstalling Orby..."
 
-if [[ -f "$BIN_DIR/Orby-Linux" ]]; then
-    rm -f "$BIN_DIR/Orby-Linux"
+if [[ -f "$BIN_DIR/orby" ]]; then
+    rm -f "$BIN_DIR/orby"
     echo " ✓ removed executable"
 else
-    log_warn "Executable not found at $BIN_DIR/Orby-Linux"
+    log_warn "Executable not found at $BIN_DIR/orby"
 fi
 
 if [[ -f "$APP_DIR/orby.desktop" ]]; then

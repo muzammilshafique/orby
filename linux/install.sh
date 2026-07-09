@@ -70,7 +70,7 @@ if [[ $CLEAN_BUILD -eq 1 ]]; then
     rm -rf build
 fi
 
-EXECUTABLE_PATH="build/Orby-Linux"
+EXECUTABLE_PATH="build/orby"
 
 # Build if necessary
 if [[ ! -f "$EXECUTABLE_PATH" || $FORCE_BUILD -eq 1 ]]; then
@@ -91,7 +91,7 @@ fi
 log_info "Installing Orby to $BIN_DIR..."
 
 # Install Executable
-install -Dm755 "$EXECUTABLE_PATH" "$BIN_DIR/Orby-Linux"
+install -Dm755 "$EXECUTABLE_PATH" "$BIN_DIR/orby"
 
 # Install Icon
 install -Dm644 "icons/orby.svg" "$ICON_DIR/orby.svg"
@@ -100,7 +100,7 @@ install -Dm644 "icons/orby.svg" "$ICON_DIR/orby.svg"
 install -Dm644 "linux/orby.desktop" "$APP_DIR/orby.desktop"
 
 # Update paths in desktop file
-sed -i "s|^Exec=.*|Exec=$BIN_DIR/Orby-Linux|g" "$APP_DIR/orby.desktop"
+sed -i "s|^Exec=.*|Exec=$BIN_DIR/orby|g" "$APP_DIR/orby.desktop"
 sed -i "s|^Icon=.*|Icon=$ICON_DIR/orby.svg|g" "$APP_DIR/orby.desktop"
 
 # Update desktop caches
@@ -117,7 +117,7 @@ else
 fi
 
 log_info "Verifying installed files..."
-[[ -f "$BIN_DIR/Orby-Linux" ]] && echo " ✓ executable ($BIN_DIR/Orby-Linux)" || log_error "Failed to verify executable."
+[[ -f "$BIN_DIR/orby" ]] && echo " ✓ executable ($BIN_DIR/orby)" || log_error "Failed to verify executable."
 [[ -f "$APP_DIR/orby.desktop" ]] && echo " ✓ desktop entry ($APP_DIR/orby.desktop)" || log_error "Failed to verify desktop entry."
 [[ -f "$ICON_DIR/orby.svg" ]] && echo " ✓ icon ($ICON_DIR/orby.svg)" || log_error "Failed to verify icon."
 
