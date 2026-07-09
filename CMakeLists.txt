@@ -37,43 +37,39 @@ target_link_libraries(appOrby
 )
 
 # ── Release optimization flags for main executable ──
-if(CMAKE_BUILD_TYPE STREQUAL "Release" OR CMAKE_BUILD_TYPE STREQUAL "MinSizeRel")
-    if(MSVC)
-        target_compile_options(appOrby PRIVATE /O2 /GL)
-        target_link_options(appOrby PRIVATE /LTCG /OPT:REF /OPT:ICF)
-    else()
-        target_compile_options(appOrby PRIVATE -O2 -ffunction-sections -fdata-sections)
-        target_link_options(appOrby PRIVATE -Wl,--gc-sections -s)
-    endif()
+# Use generator expressions for MSVC multi-config compatibility
+if(MSVC)
+    target_compile_options(appOrby PRIVATE
+        $<$<CONFIG:Release>:/O2>
+    )
+else()
+    target_compile_options(appOrby PRIVATE
+        $<$<CONFIG:Release>:-O2 -ffunction-sections -fdata-sections>
+    )
+    target_link_options(appOrby PRIVATE
+        $<$<CONFIG:Release>:-Wl,--gc-sections -s>
+    )
 endif()
 
 # ── Platform targets ──
 if(WIN32)
     set_target_properties(appOrby PROPERTIES
         OUTPUT_NAME "Orby-Windows"
-        WIN32_EXECUTABLE TRUE
+        WIN32_EXECUTABLE FALSE
     )
 
-    # ── Ultra-minimal dummy executable ──
+    # ── Minimal dummy executable ──
     add_executable(dummy WIN32 windows/dummy.cpp)
     set_target_properties(dummy PROPERTIES
         WIN32_EXECUTABLE TRUE
-        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}"
     )
 
-    # Size-optimized compiler flags for dummy (smallest possible binary)
+    # Size-optimized compiler flags for dummy
     if(MSVC)
-        target_compile_options(dummy PRIVATE /Os /GS- /GL)
-        target_link_options(dummy PRIVATE
-            /LTCG
-            /OPT:REF
-            /OPT:ICF
-            /ENTRY:WinMainCRTStartup
-            /NODEFAULTLIB:libcmt
-        )
+        target_compile_options(dummy PRIVATE $<$<CONFIG:Release>:/Os>)
     else()
         target_compile_options(dummy PRIVATE -Os -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections)
-        target_link_options(dummy PRIVATE -Wl,--gc-sections -s -nostdlib)
+        target_link_options(dummy PRIVATE -Wl,--gc-sections -s)
     endif()
 
 else()
