@@ -1,0 +1,121 @@
+name: Build & Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  build-linux:
+    name: Build Linux
+    runs-on: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.11.0"
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt install -y \
+            cmake \
+            ninja-build \
+            build-essential \
+            zip
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Package
+        run: |
+          mkdir package
+          cp build/orby package/
+          cp README.md package/ || true
+          cp LICENSE package/ || true
+
+      - name: Zip
+        run: |
+          cd package
+          zip -r ../orby-linux-x86_64.zip .
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: orby-linux-x86_64.zip
+
+  build-windows:
+    name: Build Windows
+    runs-on: windows-2022
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@v4
+        with:
+          version: "6.11.0"
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Deploy Qt
+        shell: powershell
+        run: |
+          mkdir package
+
+          Copy-Item build\Release\Orby-Windows.exe package\
+
+          windeployqt `
+            --release `
+            package\Orby-Windows.exe
+
+          if (Test-Path README.md) {
+            Copy-Item README.md package\
+          }
+
+          if (Test-Path LICENSE) {
+            Copy-Item LICENSE package\
+          }
+
+      - name: Zip
+        shell: powershell
+        run: |
+          Compress-Archive `
+            -Path package\* `
+            -DestinationPath orby-windows-x86_64.zip
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows
+          path: orby-windows-x86_64.zip
+
+  release:
+    name: Publish Release
+    needs:
+      - build-linux
+      - build-windows
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/download-artifact@v4
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            linux/orby-linux-x86_64.zip
+            windows/orby-windows-x86_64.zip
