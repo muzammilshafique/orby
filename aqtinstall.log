@@ -1,0 +1,2 @@
+2026-07-09 21:17:32,289 - aqt.metadata - DEBUG - metadata 140719849369728 Connection to 'https://download.qt.io' failed. Retrying with fallback 'https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/'.
+2026-07-09 21:17:35,297 - aqt.main - ERROR - installer 140719849369728 Failure to connect to https://ftp.yz.yamagata-u.ac.jp/pub/qtproject/online/qtsdkrepository/windows_x86/desktop/: ConnectionError
