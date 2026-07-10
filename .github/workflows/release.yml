@@ -44,7 +44,8 @@ jobs:
           APPIMAGE_EXTRACT_AND_RUN: 1
         run: |
           export QML_SOURCES_PATHS=qml/
-          linuxdeploy \
+
+          ${{ steps.install-linuxdeploy.outputs.linuxdeploy }} \
             --appdir AppDir \
             --plugin qt \
             --output appimage \
