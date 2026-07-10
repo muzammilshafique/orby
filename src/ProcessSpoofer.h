@@ -26,7 +26,9 @@ public:
     QString currentProcessName() const;
 
 public slots:
-    void startSpoofing(const QString &processName);
+    void startSpoofing(const QString &processName,
+                       const QString &gameName = QString(),
+                       const QString &steamAppId = QString());
     void stopSpoofing();
 
 signals:
@@ -42,6 +44,7 @@ private:
 #ifdef Q_OS_WIN
     HANDLE m_processHandle = nullptr;
     QString m_tempBinaryPath;
+    QString m_manifestPath;  // Steam ACF manifest for cleanup
 #endif
 
 #ifdef Q_OS_LINUX

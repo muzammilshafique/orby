@@ -23,7 +23,11 @@ QString ProcessSpoofer::currentProcessName() const {
   return m_currentProcessName;
 }
 
-void ProcessSpoofer::startSpoofing(const QString &processName) {
+void ProcessSpoofer::startSpoofing(const QString &processName,
+                                   const QString &gameName,
+                                   const QString &steamAppId) {
+  Q_UNUSED(gameName)
+  Q_UNUSED(steamAppId)
   if (m_isSpoofing) {
     stopSpoofing();
   }

@@ -466,7 +466,9 @@ Window {
                             }
 
                             onClicked: {
-                                spoofer.startSpoofing(modelData.primaryExecutable)
+                                spoofer.startSpoofing(modelData.primaryExecutable,
+                                                      modelData.name,
+                                                      modelData.steamAppId ?? "")
                             }
                         }
                     }

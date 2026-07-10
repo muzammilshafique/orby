@@ -5,6 +5,7 @@
 #include <QFileInfo>
 #include <QCoreApplication>
 #include <QDebug>
+#include <QTextStream>
 
 #include <windows.h>
 
@@ -28,7 +29,42 @@ QString ProcessSpoofer::currentProcessName() const
     return m_currentProcessName;
 }
 
-void ProcessSpoofer::startSpoofing(const QString &processName)
+// ---------------------------------------------------------------------------
+//  Helpers
+// ---------------------------------------------------------------------------
+
+/// Sanitize a display name so it can be used as a Windows folder name.
+static QString sanitizeFolderName(const QString &raw)
+{
+    QString s = raw;
+    // Remove characters that are invalid in NTFS directory names
+    for (QChar c : QStringLiteral("<>:\"/\\|?*"))
+        s.remove(c);
+    return s.trimmed();
+}
+
+/// Try to delete a file with retry — Windows can briefly lock an exe after
+/// process termination or during an antivirus scan.
+static bool robustDelete(const QString &path, int attempts = 5, int delayMs = 100)
+{
+    std::wstring wpath = path.toStdWString();
+    for (int i = 0; i < attempts; ++i) {
+        if (DeleteFileW(wpath.c_str()))
+            return true;
+        if (!QFile::exists(path))
+            return true;            // already gone
+        Sleep(static_cast<DWORD>(delayMs));
+    }
+    return !QFile::exists(path);
+}
+
+// ---------------------------------------------------------------------------
+//  Start
+// ---------------------------------------------------------------------------
+
+void ProcessSpoofer::startSpoofing(const QString &processName,
+                                   const QString &gameName,
+                                   const QString &steamAppId)
 {
     if (m_isSpoofing) {
         stopSpoofing();
@@ -39,39 +75,45 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
         return;
     }
 
-    // Enforce .exe extension for Discord detection on Windows
-    QString targetName = processName;
-    if (!targetName.endsWith(".exe", Qt::CaseInsensitive)) {
-        targetName += ".exe";
-    }
+    // ── Resolve target executable name ──
+    QString targetExe = processName;
+    if (!targetExe.endsWith(".exe", Qt::CaseInsensitive))
+        targetExe += ".exe";
+    targetExe = QFileInfo(targetExe).fileName();   // strip path separators
 
-    // Safety: strip any remaining path separators — we only want a filename
-    targetName = QFileInfo(targetName).fileName();
-
-    // Locate the compiled dummy.exe in the application directory
-    QString dummySource = QCoreApplication::applicationDirPath() + "/dummy.exe";
-    if (!QFile::exists(dummySource)) {
+    // ── Locate bundled dummy.exe ──
+    QString appDir  = QCoreApplication::applicationDirPath();
+    QString dummySrc = appDir + "/dummy.exe";
+    if (!QFile::exists(dummySrc)) {
         emit errorOccurred("Could not find 'dummy.exe' in application directory.");
         return;
     }
 
-    // Build the target path in a secure temp location
-    QString tempDir = QDir::tempPath();
-    m_tempBinaryPath = QDir(tempDir).filePath(targetName);
+    // ── Build destination directory ──
+    //  Steam game  → games/steamapps/common/<GameName>/<exe>
+    //  Other       → games/<exe>
+    QString gamesRoot = appDir + "/games";
+    bool isSteam = !steamAppId.isEmpty();
+    QString exeDir;
 
-    // Remove any stale copy — retry with delays because Windows may still
-    // hold a file lock briefly after process termination or antivirus scan.
+    if (isSteam) {
+        QString safeName = sanitizeFolderName(
+            gameName.isEmpty() ? QFileInfo(targetExe).completeBaseName() : gameName);
+        exeDir = gamesRoot + "/steamapps/common/" + safeName;
+    } else {
+        exeDir = gamesRoot;
+    }
+
+    if (!QDir().mkpath(exeDir)) {
+        emit errorOccurred("Failed to create directory: " + exeDir);
+        return;
+    }
+
+    m_tempBinaryPath = exeDir + "/" + targetExe;
+
+    // ── Remove stale copy ──
     if (QFile::exists(m_tempBinaryPath)) {
-        bool removed = false;
-        std::wstring wpath = m_tempBinaryPath.toStdWString();
-        for (int attempt = 0; attempt < 5; ++attempt) {
-            if (DeleteFileW(wpath.c_str())) {
-                removed = true;
-                break;
-            }
-            Sleep(100);  // Wait for OS / AV to release the file
-        }
-        if (!removed && QFile::exists(m_tempBinaryPath)) {
+        if (!robustDelete(m_tempBinaryPath)) {
             emit errorOccurred("Cannot remove stale file: " + m_tempBinaryPath
                                + " (error " + QString::number(GetLastError()) + ")."
                                + " An antivirus may be locking it.");
@@ -79,50 +121,71 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
         }
     }
 
-    // Copy the dummy to the temp location with the target game name
-    if (!QFile::copy(dummySource, m_tempBinaryPath)) {
+    // ── Copy dummy → renamed game exe ──
+    if (!QFile::copy(dummySrc, m_tempBinaryPath)) {
         emit errorOccurred("Failed to copy dummy executable to " + m_tempBinaryPath);
         return;
     }
 
-    // Use Win32 CreateProcess directly instead of QProcess.
-    // QProcess has issues launching GUI-subsystem (WinMain) executables
-    // because it expects stdio channels that GUI apps don't provide,
-    // causing waitForStarted() to timeout or the process to not launch.
+    // ── Generate Steam ACF manifest (optional) ──
+    if (isSteam) {
+        QString safeName = sanitizeFolderName(
+            gameName.isEmpty() ? QFileInfo(targetExe).completeBaseName() : gameName);
+        m_manifestPath = gamesRoot + "/steamapps/appmanifest_" + steamAppId + ".acf";
+
+        QFile acf(m_manifestPath);
+        if (acf.open(QIODevice::WriteOnly | QIODevice::Text)) {
+            QTextStream out(&acf);
+            out << "\"AppState\"\n{\n"
+                << "\t\"appid\"\t\t\"" << steamAppId << "\"\n"
+                << "\t\"Universe\"\t\t\"1\"\n"
+                << "\t\"name\"\t\t\"" << safeName << "\"\n"
+                << "\t\"StateFlags\"\t\t\"4\"\n"
+                << "\t\"installdir\"\t\t\"" << safeName << "\"\n"
+                << "\t\"LastUpdated\"\t\t\"0\"\n"
+                << "\t\"SizeOnDisk\"\t\t\"0\"\n"
+                << "\t\"buildid\"\t\t\"0\"\n"
+                << "}\n";
+            acf.close();
+            qDebug() << "[Orby] Generated ACF manifest:" << m_manifestPath;
+        }
+    }
+
+    // ── Launch the renamed executable via CreateProcessW ──
+    // CreateProcessW is used instead of QProcess because QProcess relies
+    // on stdio pipes that GUI-subsystem (WinMain) executables never create,
+    // causing waitForStarted() to timeout.
     STARTUPINFOW si = {};
     si.cb = sizeof(si);
     PROCESS_INFORMATION pi = {};
 
-    std::wstring exePath = m_tempBinaryPath.toStdWString();
-    std::wstring workDir = tempDir.toStdWString();
+    std::wstring wExe  = m_tempBinaryPath.toStdWString();
+    std::wstring wDir  = QString(exeDir).toStdWString();
+    std::wstring wCmd  = L"\"" + wExe + L"\"";
 
-    // CreateProcessW needs a mutable command-line buffer
-    std::wstring cmdLine = L"\"" + exePath + L"\"";
-    std::vector<wchar_t> cmdBuf(cmdLine.begin(), cmdLine.end());
+    std::vector<wchar_t> cmdBuf(wCmd.begin(), wCmd.end());
     cmdBuf.push_back(L'\0');
 
     BOOL ok = CreateProcessW(
-        exePath.c_str(),    // lpApplicationName — full path to the renamed dummy
-        cmdBuf.data(),      // lpCommandLine
-        nullptr,            // lpProcessAttributes
-        nullptr,            // lpThreadAttributes
+        wExe.c_str(),       // lpApplicationName
+        cmdBuf.data(),      // lpCommandLine  (mutable)
+        nullptr, nullptr,   // security attrs
         FALSE,              // bInheritHandles
         0,                  // dwCreationFlags
         nullptr,            // lpEnvironment
-        workDir.c_str(),    // lpCurrentDirectory
-        &si,                // lpStartupInfo
-        &pi                 // lpProcessInformation
+        wDir.c_str(),       // lpCurrentDirectory
+        &si, &pi
     );
 
     if (!ok) {
         DWORD err = GetLastError();
-        emit errorOccurred(QString("Failed to start spoofed process (error %1).").arg(err));
+        emit errorOccurred(
+            QString("Failed to start spoofed process (error %1).").arg(err));
         QFile::remove(m_tempBinaryPath);
         m_tempBinaryPath.clear();
         return;
     }
 
-    // Store the process handle for cleanup, close the thread handle immediately
     m_processHandle = pi.hProcess;
     CloseHandle(pi.hThread);
 
@@ -131,40 +194,57 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
     emit isSpoofingChanged();
     emit currentProcessNameChanged();
 
-    qDebug() << "[Orby] Spawned dummy as:" << targetName
-             << "PID:" << pi.dwProcessId;
+    qDebug() << "[Orby] Spawned dummy as:" << targetExe
+             << "PID:" << pi.dwProcessId
+             << (isSteam ? "(Steam AppID: " + steamAppId + ")" : QString());
 }
+
+// ---------------------------------------------------------------------------
+//  Stop
+// ---------------------------------------------------------------------------
 
 void ProcessSpoofer::stopSpoofing()
 {
-    // Re-entrancy guard — prevents double-cleanup from signal + explicit call
     if (m_stopping) return;
     m_stopping = true;
 
+    // ── Terminate the dummy process ──
     if (m_processHandle != nullptr && m_processHandle != INVALID_HANDLE_VALUE) {
-        // Terminate the dummy process
         TerminateProcess(m_processHandle, 0);
         WaitForSingleObject(m_processHandle, 2000);
         CloseHandle(m_processHandle);
         m_processHandle = nullptr;
 
-        // Give Windows time to fully release the file handle on the exe
+        // Give Windows time to fully release the file handle
         Sleep(150);
-
         qDebug() << "[Orby] Terminated dummy process.";
     }
 
-    // Clean up the temporary binary with retry logic
+    // ── Delete the renamed executable ──
     if (!m_tempBinaryPath.isEmpty()) {
-        std::wstring wpath = m_tempBinaryPath.toStdWString();
-        for (int attempt = 0; attempt < 5; ++attempt) {
-            if (DeleteFileW(wpath.c_str()) || !QFile::exists(m_tempBinaryPath))
+        robustDelete(m_tempBinaryPath);
+
+        // Remove empty parent directories up to (not including) games/
+        QString gamesRoot = QCoreApplication::applicationDirPath() + "/games";
+        QDir dir = QFileInfo(m_tempBinaryPath).dir();
+        while (dir.absolutePath() != gamesRoot
+               && dir.absolutePath().startsWith(gamesRoot)) {
+            QString p = dir.absolutePath();
+            if (!QDir().rmdir(p))    // only removes if empty
                 break;
-            Sleep(100);
+            dir.cdUp();
         }
+
         m_tempBinaryPath.clear();
     }
 
+    // ── Delete the ACF manifest ──
+    if (!m_manifestPath.isEmpty()) {
+        QFile::remove(m_manifestPath);
+        m_manifestPath.clear();
+    }
+
+    // ── Update state ──
     if (m_isSpoofing) {
         m_isSpoofing = false;
         m_currentProcessName.clear();

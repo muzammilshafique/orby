@@ -100,6 +100,13 @@ void DiscordApi::onReplyFinished()
             }
 
             QString execName = execObj["name"].toString();
+#ifdef Q_OS_WIN
+            // On Windows, strip path prefixes — Discord matches by filename.
+            // e.g. "game/client/eso64.exe" → "eso64.exe"
+            int lastSlash = execName.lastIndexOf('/');
+            if (lastSlash >= 0)
+                execName = execName.mid(lastSlash + 1);
+#endif
             if (!execName.isEmpty() && !executableNames.contains(execName))
                 executableNames.append(execName);
         }
@@ -108,12 +115,26 @@ void DiscordApi::onReplyFinished()
             continue;
         }
 
+        // Extract Steam App ID from third-party SKUs (for Steam spoofing)
+        QString steamAppId;
+        QJsonArray skus = obj["third_party_skus"].toArray();
+        for (const QJsonValue &sku : skus) {
+            QJsonObject skuObj = sku.toObject();
+            if (skuObj["distributor"].toString() == "steam") {
+                QString id = skuObj["id"].toString();
+                if (!id.isEmpty()) {
+                    steamAppId = id;
+                    break;
+                }
+            }
+        }
+
         QVariantMap gameMap;
         gameMap["name"] = name;
         gameMap["executables"] = executableNames;
-        // Use the first executable as the primary one to spoof
         gameMap["primaryExecutable"] = executableNames.first();
         gameMap["id"] = obj["id"].toString();
+        gameMap["steamAppId"] = steamAppId;
 
         newGames.append(gameMap);
     }
