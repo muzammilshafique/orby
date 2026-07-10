@@ -81,7 +81,7 @@ jobs:
           Copy-Item build\Release\Orby-Windows.exe package\
           Copy-Item build\Release\dummy.exe package\
 
-          windeployqt6 `
+          windeployqt `
             --release `
             --qmldir qml `
             --no-translations `
