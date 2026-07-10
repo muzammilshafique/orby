@@ -34,6 +34,7 @@ jobs:
         run: cmake --build build --config Release
 
       - name: Install linuxdeploy
+        id: install-linuxdeploy
         uses: miurahr/install-linuxdeploy-action@v1
         with:
           plugins: qt appimage
