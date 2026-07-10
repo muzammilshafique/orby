@@ -12,48 +12,33 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
     return DefWindowProc(hwnd, uMsg, wParam, lParam);
 }
 
+// Replace your WinMain in windows/dummy.cpp with this:
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
     (void)hPrevInstance;
-    (void)lpCmdLine;
     (void)nCmdShow;
 
-    // Register a basic window class
     const char CLASS_NAME[] = "OrbyDummyClass";
-    
     WNDCLASS wc = { };
     wc.lpfnWndProc   = WindowProc;
     wc.hInstance     = hInstance;
     wc.lpszClassName = CLASS_NAME;
-
     RegisterClass(&wc);
 
-    // Create a hidden window. Discord uses EnumWindows -> GetWindowThreadProcessId 
-    // to find running games. Without a window, Discord ignores the process.
+    // Use the command line argument as the window title
+    LPCSTR windowTitle = (lpCmdLine && lpCmdLine[0] != '\0') ? lpCmdLine : "Default Game Window";
+
     HWND hwnd = CreateWindowEx(
-        0,                              // Optional window styles
-        CLASS_NAME,                     // Window class
-        "Orby Dummy Game Window",       // Window text
-        WS_OVERLAPPEDWINDOW,            // Window style (standard)
+        0, CLASS_NAME, windowTitle, WS_OVERLAPPEDWINDOW,
         CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT, CW_USEDEFAULT,
-        NULL,       // Parent window    
-        NULL,       // Menu
-        hInstance,  // Instance handle
-        NULL        // Additional application data
+        NULL, NULL, hInstance, NULL
     );
 
-    if (hwnd == NULL) {
-        return 0;
-    }
+    if (hwnd == NULL) return 0;
 
-    // Do NOT call ShowWindow(hwnd, ...). The window remains completely invisible,
-    // but the handle exists for Discord's EnumWindows scanner to find.
-
-    // Run the standard message loop — uses zero CPU while waiting for messages.
     MSG msg = { };
     while (GetMessage(&msg, NULL, 0, 0) > 0) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-
     return 0;
 }

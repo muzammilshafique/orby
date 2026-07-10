@@ -161,7 +161,10 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
 
     std::wstring wExe  = m_tempBinaryPath.toStdWString();
     std::wstring wDir  = QString(exeDir).toStdWString();
-    std::wstring wCmd  = L"\"" + wExe + L"\"";
+    std::wstring wGameName = gameName.toStdWString();
+    
+    // Pass the game name as the first argument so dummy.exe can use it as the window title
+    std::wstring wCmd  = L"\"" + wExe + L"\" \"" + wGameName + L"\"";
 
     std::vector<wchar_t> cmdBuf(wCmd.begin(), wCmd.end());
     cmdBuf.push_back(L'\0');
