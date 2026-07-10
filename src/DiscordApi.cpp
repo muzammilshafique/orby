@@ -99,12 +99,7 @@ void DiscordApi::onReplyFinished()
                     continue;
             }
 
-            // Strip any path prefix — Discord matches by filename only.
-            // e.g. "game/client/eso64.exe" → "eso64.exe"
             QString execName = execObj["name"].toString();
-            int lastSlash = execName.lastIndexOf('/');
-            if (lastSlash >= 0)
-                execName = execName.mid(lastSlash + 1);
             if (!execName.isEmpty() && !executableNames.contains(execName))
                 executableNames.append(execName);
         }
