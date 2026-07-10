@@ -55,7 +55,7 @@ endif()
 if(WIN32)
     set_target_properties(appOrby PROPERTIES
         OUTPUT_NAME "Orby-Windows"
-        WIN32_EXECUTABLE FALSE
+        WIN32_EXECUTABLE TRUE
     )
 
     # ── Minimal dummy executable ──

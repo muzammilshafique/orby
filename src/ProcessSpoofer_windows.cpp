@@ -59,9 +59,24 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
     QString tempDir = QDir::tempPath();
     m_tempBinaryPath = QDir(tempDir).filePath(targetName);
 
-    // Remove any stale copy
+    // Remove any stale copy — retry with delays because Windows may still
+    // hold a file lock briefly after process termination or antivirus scan.
     if (QFile::exists(m_tempBinaryPath)) {
-        QFile::remove(m_tempBinaryPath);
+        bool removed = false;
+        std::wstring wpath = m_tempBinaryPath.toStdWString();
+        for (int attempt = 0; attempt < 5; ++attempt) {
+            if (DeleteFileW(wpath.c_str())) {
+                removed = true;
+                break;
+            }
+            Sleep(100);  // Wait for OS / AV to release the file
+        }
+        if (!removed && QFile::exists(m_tempBinaryPath)) {
+            emit errorOccurred("Cannot remove stale file: " + m_tempBinaryPath
+                               + " (error " + QString::number(GetLastError()) + ")."
+                               + " An antivirus may be locking it.");
+            return;
+        }
     }
 
     // Copy the dummy to the temp location with the target game name
@@ -132,13 +147,20 @@ void ProcessSpoofer::stopSpoofing()
         WaitForSingleObject(m_processHandle, 2000);
         CloseHandle(m_processHandle);
         m_processHandle = nullptr;
+
+        // Give Windows time to fully release the file handle on the exe
+        Sleep(150);
+
         qDebug() << "[Orby] Terminated dummy process.";
     }
 
-    // Clean up the temporary binary
+    // Clean up the temporary binary with retry logic
     if (!m_tempBinaryPath.isEmpty()) {
-        if (QFile::exists(m_tempBinaryPath)) {
-            QFile::remove(m_tempBinaryPath);
+        std::wstring wpath = m_tempBinaryPath.toStdWString();
+        for (int attempt = 0; attempt < 5; ++attempt) {
+            if (DeleteFileW(wpath.c_str()) || !QFile::exists(m_tempBinaryPath))
+                break;
+            Sleep(100);
         }
         m_tempBinaryPath.clear();
     }
