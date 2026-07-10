@@ -5,7 +5,7 @@
 #include <QString>
 
 #ifdef Q_OS_WIN
-#include <QProcess>
+#include <windows.h>
 #endif
 
 #ifdef Q_OS_LINUX
@@ -40,7 +40,7 @@ private:
     QString m_currentProcessName;
 
 #ifdef Q_OS_WIN
-    QProcess m_process;
+    HANDLE m_processHandle = nullptr;
     QString m_tempBinaryPath;
 #endif
 

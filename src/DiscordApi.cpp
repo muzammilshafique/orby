@@ -5,6 +5,7 @@
 #include <QJsonArray>
 #include <QJsonObject>
 #include <QVariantMap>
+#include <QSysInfo>
 
 DiscordApi::DiscordApi(QObject *parent) : QObject(parent)
 {
@@ -68,17 +69,44 @@ void DiscordApi::onReplyFinished()
         return;
     }
 
+    // On Windows, only show executables tagged for win32 (we need real .exe files).
+    // On Linux/macOS, show ALL executables regardless of OS tag — the spoofer
+    // just renames a copy of 'sleep', so any process name works. Discord's
+    // database has ~10,000 games but very few have explicit linux entries.
+#ifdef Q_OS_WIN
+    const bool filterByOs = true;
+    const QString targetOs = QStringLiteral("win32");
+#else
+    const bool filterByOs = false;
+    const QString targetOs;
+#endif
+
     QVariantList newGames;
     QJsonArray array = doc.array();
 
     for (const QJsonValue &val : array) {
         QJsonObject obj = val.toObject();
         QString name = obj["name"].toString();
-        
+
         QJsonArray execs = obj["executables"].toArray();
         QStringList executableNames;
         for (const QJsonValue &e : execs) {
-            executableNames.append(e.toObject()["name"].toString());
+            QJsonObject execObj = e.toObject();
+
+            if (filterByOs) {
+                QString execOs = execObj["os"].toString();
+                if (execOs != targetOs)
+                    continue;
+            }
+
+            // Strip any path prefix — Discord matches by filename only.
+            // e.g. "game/client/eso64.exe" → "eso64.exe"
+            QString execName = execObj["name"].toString();
+            int lastSlash = execName.lastIndexOf('/');
+            if (lastSlash >= 0)
+                execName = execName.mid(lastSlash + 1);
+            if (!execName.isEmpty() && !executableNames.contains(execName))
+                executableNames.append(execName);
         }
 
         if (name.isEmpty() || executableNames.isEmpty()) {
@@ -88,10 +116,10 @@ void DiscordApi::onReplyFinished()
         QVariantMap gameMap;
         gameMap["name"] = name;
         gameMap["executables"] = executableNames;
-        // Use the first executable as the primary one
+        // Use the first executable as the primary one to spoof
         gameMap["primaryExecutable"] = executableNames.first();
         gameMap["id"] = obj["id"].toString();
-        
+
         newGames.append(gameMap);
     }
 

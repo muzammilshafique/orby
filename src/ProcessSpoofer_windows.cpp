@@ -6,19 +6,11 @@
 #include <QCoreApplication>
 #include <QDebug>
 
+#include <windows.h>
+
 ProcessSpoofer::ProcessSpoofer(QObject *parent)
     : QObject(parent)
 {
-    // Auto-cleanup when the dummy process exits (crash, manual kill, etc.)
-    connect(&m_process, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
-            this, [this](int exitCode, QProcess::ExitStatus status) {
-        Q_UNUSED(exitCode)
-        Q_UNUSED(status)
-        if (m_isSpoofing) {
-            qDebug() << "[Orby] Dummy process exited, cleaning up.";
-            stopSpoofing();
-        }
-    });
 }
 
 ProcessSpoofer::~ProcessSpoofer()
@@ -53,6 +45,9 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
         targetName += ".exe";
     }
 
+    // Safety: strip any remaining path separators — we only want a filename
+    targetName = QFileInfo(targetName).fileName();
+
     // Locate the compiled dummy.exe in the application directory
     QString dummySource = QCoreApplication::applicationDirPath() + "/dummy.exe";
     if (!QFile::exists(dummySource)) {
@@ -63,13 +58,6 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
     // Build the target path in a secure temp location
     QString tempDir = QDir::tempPath();
     m_tempBinaryPath = QDir(tempDir).filePath(targetName);
-
-    // Create parent directories if the target name contains path separators
-    QFileInfo fileInfo(m_tempBinaryPath);
-    QDir dir = fileInfo.dir();
-    if (!dir.exists()) {
-        dir.mkpath(".");
-    }
 
     // Remove any stale copy
     if (QFile::exists(m_tempBinaryPath)) {
@@ -82,17 +70,46 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
         return;
     }
 
-    // Set working directory to temp to avoid path leaks
-    m_process.setWorkingDirectory(tempDir);
-    m_process.setProgram(m_tempBinaryPath);
-    m_process.start();
+    // Use Win32 CreateProcess directly instead of QProcess.
+    // QProcess has issues launching GUI-subsystem (WinMain) executables
+    // because it expects stdio channels that GUI apps don't provide,
+    // causing waitForStarted() to timeout or the process to not launch.
+    STARTUPINFOW si = {};
+    si.cb = sizeof(si);
+    PROCESS_INFORMATION pi = {};
 
-    if (!m_process.waitForStarted(3000)) {
-        emit errorOccurred("Failed to start spoofed process.");
+    std::wstring exePath = m_tempBinaryPath.toStdWString();
+    std::wstring workDir = tempDir.toStdWString();
+
+    // CreateProcessW needs a mutable command-line buffer
+    std::wstring cmdLine = L"\"" + exePath + L"\"";
+    std::vector<wchar_t> cmdBuf(cmdLine.begin(), cmdLine.end());
+    cmdBuf.push_back(L'\0');
+
+    BOOL ok = CreateProcessW(
+        exePath.c_str(),    // lpApplicationName — full path to the renamed dummy
+        cmdBuf.data(),      // lpCommandLine
+        nullptr,            // lpProcessAttributes
+        nullptr,            // lpThreadAttributes
+        FALSE,              // bInheritHandles
+        0,                  // dwCreationFlags
+        nullptr,            // lpEnvironment
+        workDir.c_str(),    // lpCurrentDirectory
+        &si,                // lpStartupInfo
+        &pi                 // lpProcessInformation
+    );
+
+    if (!ok) {
+        DWORD err = GetLastError();
+        emit errorOccurred(QString("Failed to start spoofed process (error %1).").arg(err));
         QFile::remove(m_tempBinaryPath);
         m_tempBinaryPath.clear();
         return;
     }
+
+    // Store the process handle for cleanup, close the thread handle immediately
+    m_processHandle = pi.hProcess;
+    CloseHandle(pi.hThread);
 
     m_isSpoofing = true;
     m_currentProcessName = processName;
@@ -100,7 +117,7 @@ void ProcessSpoofer::startSpoofing(const QString &processName)
     emit currentProcessNameChanged();
 
     qDebug() << "[Orby] Spawned dummy as:" << targetName
-             << "PID:" << m_process.processId();
+             << "PID:" << pi.dwProcessId;
 }
 
 void ProcessSpoofer::stopSpoofing()
@@ -109,12 +126,13 @@ void ProcessSpoofer::stopSpoofing()
     if (m_stopping) return;
     m_stopping = true;
 
-    if (m_process.state() != QProcess::NotRunning) {
-        m_process.terminate();
-        if (!m_process.waitForFinished(1500)) {
-            m_process.kill();
-            m_process.waitForFinished(1500);
-        }
+    if (m_processHandle != nullptr && m_processHandle != INVALID_HANDLE_VALUE) {
+        // Terminate the dummy process
+        TerminateProcess(m_processHandle, 0);
+        WaitForSingleObject(m_processHandle, 2000);
+        CloseHandle(m_processHandle);
+        m_processHandle = nullptr;
+        qDebug() << "[Orby] Terminated dummy process.";
     }
 
     // Clean up the temporary binary
