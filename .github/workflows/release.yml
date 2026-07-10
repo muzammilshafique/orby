@@ -25,11 +25,7 @@ jobs:
       - name: Install dependencies
         run: |
           sudo apt update
-          sudo apt install -y \
-            cmake \
-            ninja-build \
-            build-essential \
-            zip
+          sudo apt install -y cmake ninja-build build-essential zip
 
       - name: Configure
         run: cmake -B build -DCMAKE_BUILD_TYPE=Release
@@ -37,22 +33,38 @@ jobs:
       - name: Build
         run: cmake --build build --config Release
 
-      - name: Package
+      - name: Install linuxdeploy
+        uses: miurahr/install-linuxdeploy-action@v1
+        with:
+          plugins: qt appimage
+          
+      - name: Build AppImage
+        run: |
+          export QML_SOURCES_PATHS=qml/
+          linuxdeploy \
+            --appdir AppDir \
+            --plugin qt \
+            --output appimage \
+            --executable build/orby \
+            --desktop-file linux/orby.desktop \
+            --icon-file icons/orby.svg
+
+      - name: Package Zip
         run: |
           mkdir package
           cp build/orby package/
           cp README.md package/ || true
           cp LICENSE package/ || true
-
-      - name: Zip
-        run: |
           cd package
           zip -r ../orby-linux-x86_64.zip .
 
-      - uses: actions/upload-artifact@v4
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
         with:
           name: linux
-          path: orby-linux-x86_64.zip
+          path: |
+            orby-linux-x86_64.zip
+            *.AppImage
 
   build-windows:
     name: Build Windows
@@ -124,3 +136,4 @@ jobs:
           files: |
             linux/orby-linux-x86_64.zip
             windows/orby-windows-x86_64.zip
+            linux/*.AppImage
