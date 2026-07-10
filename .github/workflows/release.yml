@@ -11,7 +11,7 @@ permissions:
 jobs:
   build-linux:
     name: Build Linux
-    runs-on: ubuntu-24.04
+    runs-on: ubuntu-22.04
 
     steps:
       - uses: actions/checkout@v4
@@ -40,6 +40,8 @@ jobs:
           plugins: qt appimage
           
       - name: Build AppImage
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: 1
         run: |
           export QML_SOURCES_PATHS=qml/
           linuxdeploy \
