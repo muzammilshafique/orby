@@ -12,13 +12,10 @@ Window {
     title: "Orby"
     color: md.background
 
-    // ════════════════════════════════════════════════════════════════
-    //  Google Material 3 — Bold Dark Design Tokens
-    // ════════════════════════════════════════════════════════════════
     QtObject {
         id: md
 
-        // Primary: Google Vibrant Blue
+        // Primary: Vibrant Blue
         readonly property color primary:               "#A8C7FA"
         readonly property color primaryFg:              "#062E6F"
         readonly property color primaryContainer:       "#0842A0"
@@ -30,19 +27,19 @@ Window {
         readonly property color secondaryContainer:     "#004D68"
         readonly property color secondaryContainerFg:   "#C2E7FF"
 
-        // Tertiary: Google Green / Active Spoofing Accent
+        // Tertiary: Green / Active Spoofing Accent
         readonly property color tertiary:               "#6DD58C"
         readonly property color tertiaryFg:             "#0A3818"
         readonly property color tertiaryContainer:      "#0E3E1E"
         readonly property color tertiaryContainerFg:    "#C4EED0"
 
-        // Error: Google Red
+        // Error: Red
         readonly property color error:                  "#FF897D"
         readonly property color errorFg:                "#601410"
         readonly property color errorContainer:         "#410E0B"
         readonly property color errorContainerFg:       "#F9DEDC"
 
-        // Surfaces & Elevation (Google Material 3 Dark)
+        // Surfaces & Elevation (Dark)
         readonly property color background:             "#111318"
         readonly property color surface:                "#111318"
         readonly property color surfaceContainerLowest: "#0C0E12"
