@@ -817,7 +817,7 @@ Window {
                     color: md.outlineVariant
                 }
 
-                // Active games scrollable list with dedicated scrollbar gutter
+                // Active games scrollable list
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
@@ -827,27 +827,12 @@ Window {
                     ListView {
                         id: activeListView
                         anchors.fill: parent
-                        anchors.rightMargin: 8
                         spacing: 8
                         model: spoofer.spoofedProcesses
                         boundsBehavior: Flickable.StopAtBounds
 
-                        ScrollBar.vertical: ScrollBar {
-                            id: dialogScrollBar
-                            policy: ScrollBar.AsNeeded
-                            anchors.right: parent.right
-                            anchors.rightMargin: -6
-                            contentItem: Rectangle {
-                                implicitWidth: 4
-                                radius: 2
-                                color: md.outlineVariant
-                                opacity: dialogScrollBar.active ? 0.9 : 0.4
-                                Behavior on opacity { NumberAnimation { duration: 150 } }
-                            }
-                        }
-
                         delegate: Rectangle {
-                            width: activeListView.width
+                            width: ListView.view.width
                             height: 56
                             radius: 8
                             color: md.surfaceContainer
