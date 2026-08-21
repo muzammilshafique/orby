@@ -3,6 +3,8 @@
 
 #include <QObject>
 #include <QString>
+#include <QStringList>
+#include <QMap>
 
 #ifdef Q_OS_WIN
 #include <windows.h>
@@ -17,6 +19,8 @@ class ProcessSpoofer : public QObject
     Q_OBJECT
     Q_PROPERTY(bool isSpoofing READ isSpoofing NOTIFY isSpoofingChanged)
     Q_PROPERTY(QString currentProcessName READ currentProcessName NOTIFY currentProcessNameChanged)
+    Q_PROPERTY(QStringList spoofedProcesses READ spoofedProcesses NOTIFY spoofedProcessesChanged)
+    Q_PROPERTY(int spoofedCount READ spoofedCount NOTIFY spoofedProcessesChanged)
 
 public:
     explicit ProcessSpoofer(QObject *parent = nullptr);
@@ -24,16 +28,22 @@ public:
 
     bool isSpoofing() const;
     QString currentProcessName() const;
+    QStringList spoofedProcesses() const;
+    int spoofedCount() const;
+    Q_INVOKABLE bool isSpoofingProcess(const QString &processName) const;
 
 public slots:
     void startSpoofing(const QString &processName,
                        const QString &gameName = QString(),
                        const QString &steamAppId = QString());
-    void stopSpoofing();
+    void stopSpoofing();             // stops the first / legacy single process
+    void stopSpoofingProcess(const QString &processName);
+    void stopAllSpoofing();
 
 signals:
     void isSpoofingChanged();
     void currentProcessNameChanged();
+    void spoofedProcessesChanged();
     void errorOccurred(const QString &errorMsg);
 
 private:
@@ -48,8 +58,19 @@ private:
 #endif
 
 #ifdef Q_OS_LINUX
+    // Legacy single-process fields (kept for backward compat)
     pid_t m_childPid = -1;
     QString m_tempBinaryPath;
+
+    // Multi-process tracking
+    struct SpoofEntry {
+        pid_t pid = -1;
+        QString tempBinaryPath;
+    };
+    QMap<QString, SpoofEntry> m_spoofedProcesses;
+
+    void killAndCleanEntry(SpoofEntry &entry);
+    void refreshSpoofingState();
 #endif
 };
 
