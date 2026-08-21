@@ -52,9 +52,22 @@ private:
     QString m_currentProcessName;
 
 #ifdef Q_OS_WIN
+    // Legacy single-process fields (kept for backward compat)
     HANDLE m_processHandle = nullptr;
     QString m_tempBinaryPath;
     QString m_manifestPath;  // Steam ACF manifest for cleanup
+
+    // Multi-process tracking
+    struct SpoofEntry {
+        HANDLE processHandle = nullptr;
+        QString tempBinaryPath;
+        QString manifestPath;
+        QString exeDir;       // for empty-directory cleanup
+    };
+    QMap<QString, SpoofEntry> m_spoofedProcesses;
+
+    void killAndCleanEntry(SpoofEntry &entry);
+    void refreshSpoofingState();
 #endif
 
 #ifdef Q_OS_LINUX

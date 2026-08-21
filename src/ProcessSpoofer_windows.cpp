@@ -16,7 +16,7 @@ ProcessSpoofer::ProcessSpoofer(QObject *parent)
 
 ProcessSpoofer::~ProcessSpoofer()
 {
-    stopSpoofing();
+    stopAllSpoofing();
 }
 
 bool ProcessSpoofer::isSpoofing() const
@@ -27,6 +27,21 @@ bool ProcessSpoofer::isSpoofing() const
 QString ProcessSpoofer::currentProcessName() const
 {
     return m_currentProcessName;
+}
+
+QStringList ProcessSpoofer::spoofedProcesses() const
+{
+    return m_spoofedProcesses.keys();
+}
+
+int ProcessSpoofer::spoofedCount() const
+{
+    return m_spoofedProcesses.size();
+}
+
+bool ProcessSpoofer::isSpoofingProcess(const QString &processName) const
+{
+    return m_spoofedProcesses.contains(processName);
 }
 
 // ---------------------------------------------------------------------------
@@ -66,8 +81,9 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
                                    const QString &gameName,
                                    const QString &steamAppId)
 {
-    if (m_isSpoofing) {
-        stopSpoofing();
+    // If already spoofing this specific process, do nothing
+    if (m_spoofedProcesses.contains(processName)) {
+        return;
     }
 
     if (processName.isEmpty()) {
@@ -109,12 +125,12 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
         return;
     }
 
-    m_tempBinaryPath = exeDir + "/" + targetExe;
+    QString tempBinaryPath = exeDir + "/" + targetExe;
 
     // ── Remove stale copy ──
-    if (QFile::exists(m_tempBinaryPath)) {
-        if (!robustDelete(m_tempBinaryPath)) {
-            emit errorOccurred("Cannot remove stale file: " + m_tempBinaryPath
+    if (QFile::exists(tempBinaryPath)) {
+        if (!robustDelete(tempBinaryPath)) {
+            emit errorOccurred("Cannot remove stale file: " + tempBinaryPath
                                + " (error " + QString::number(GetLastError()) + ")."
                                + " An antivirus may be locking it.");
             return;
@@ -122,18 +138,19 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
     }
 
     // ── Copy dummy → renamed game exe ──
-    if (!QFile::copy(dummySrc, m_tempBinaryPath)) {
-        emit errorOccurred("Failed to copy dummy executable to " + m_tempBinaryPath);
+    if (!QFile::copy(dummySrc, tempBinaryPath)) {
+        emit errorOccurred("Failed to copy dummy executable to " + tempBinaryPath);
         return;
     }
 
     // ── Generate Steam ACF manifest (optional) ──
+    QString manifestPath;
     if (isSteam) {
         QString safeName = sanitizeFolderName(
             gameName.isEmpty() ? QFileInfo(targetExe).completeBaseName() : gameName);
-        m_manifestPath = gamesRoot + "/steamapps/appmanifest_" + steamAppId + ".acf";
+        manifestPath = gamesRoot + "/steamapps/appmanifest_" + steamAppId + ".acf";
 
-        QFile acf(m_manifestPath);
+        QFile acf(manifestPath);
         if (acf.open(QIODevice::WriteOnly | QIODevice::Text)) {
             QTextStream out(&acf);
             out << "\"AppState\"\n{\n"
@@ -147,22 +164,19 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
                 << "\t\"buildid\"\t\t\"0\"\n"
                 << "}\n";
             acf.close();
-            qDebug() << "[Orby] Generated ACF manifest:" << m_manifestPath;
+            qDebug() << "[Orby] Generated ACF manifest:" << manifestPath;
         }
     }
 
     // ── Launch the renamed executable via CreateProcessW ──
-    // CreateProcessW is used instead of QProcess because QProcess relies
-    // on stdio pipes that GUI-subsystem (WinMain) executables never create,
-    // causing waitForStarted() to timeout.
     STARTUPINFOW si = {};
     si.cb = sizeof(si);
     PROCESS_INFORMATION pi = {};
 
-    std::wstring wExe  = m_tempBinaryPath.toStdWString();
+    std::wstring wExe  = tempBinaryPath.toStdWString();
     std::wstring wDir  = QString(exeDir).toStdWString();
     std::wstring wGameName = gameName.toStdWString();
-    
+
     // Pass the game name as the first argument so dummy.exe can use it as the window title
     std::wstring wCmd  = L"\"" + wExe + L"\" \"" + wGameName + L"\"";
 
@@ -184,39 +198,45 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
         DWORD err = GetLastError();
         emit errorOccurred(
             QString("Failed to start spoofed process (error %1).").arg(err));
-        QFile::remove(m_tempBinaryPath);
-        m_tempBinaryPath.clear();
+        QFile::remove(tempBinaryPath);
         return;
     }
 
-    m_processHandle = pi.hProcess;
     CloseHandle(pi.hThread);
 
-    m_isSpoofing = true;
-    m_currentProcessName = processName;
-    emit isSpoofingChanged();
-    emit currentProcessNameChanged();
+    // ── Store in map ──
+    SpoofEntry entry;
+    entry.processHandle = pi.hProcess;
+    entry.tempBinaryPath = tempBinaryPath;
+    entry.manifestPath = manifestPath;
+    entry.exeDir = exeDir;
+    m_spoofedProcesses.insert(processName, entry);
+
+    // Keep legacy fields in sync (point to last started)
+    m_processHandle = pi.hProcess;
+    m_tempBinaryPath = tempBinaryPath;
+    m_manifestPath = manifestPath;
+
+    refreshSpoofingState();
 
     qDebug() << "[Orby] Spawned dummy as:" << targetExe
              << "PID:" << pi.dwProcessId
-             << (isSteam ? "(Steam AppID: " + steamAppId + ")" : QString());
+             << (isSteam ? "(Steam AppID: " + steamAppId + ")" : QString())
+             << "(total active:" << m_spoofedProcesses.size() << ")";
 }
 
 // ---------------------------------------------------------------------------
-//  Stop
+//  Kill & Clean a single entry
 // ---------------------------------------------------------------------------
 
-void ProcessSpoofer::stopSpoofing()
+void ProcessSpoofer::killAndCleanEntry(SpoofEntry &entry)
 {
-    if (m_stopping) return;
-    m_stopping = true;
-
     // ── Terminate the dummy process ──
-    if (m_processHandle != nullptr && m_processHandle != INVALID_HANDLE_VALUE) {
-        TerminateProcess(m_processHandle, 0);
-        WaitForSingleObject(m_processHandle, 2000);
-        CloseHandle(m_processHandle);
-        m_processHandle = nullptr;
+    if (entry.processHandle != nullptr && entry.processHandle != INVALID_HANDLE_VALUE) {
+        TerminateProcess(entry.processHandle, 0);
+        WaitForSingleObject(entry.processHandle, 2000);
+        CloseHandle(entry.processHandle);
+        entry.processHandle = nullptr;
 
         // Give Windows time to fully release the file handle
         Sleep(150);
@@ -224,12 +244,12 @@ void ProcessSpoofer::stopSpoofing()
     }
 
     // ── Delete the renamed executable ──
-    if (!m_tempBinaryPath.isEmpty()) {
-        robustDelete(m_tempBinaryPath);
+    if (!entry.tempBinaryPath.isEmpty()) {
+        robustDelete(entry.tempBinaryPath);
 
         // Remove empty parent directories up to (not including) games/
         QString gamesRoot = QCoreApplication::applicationDirPath() + "/games";
-        QDir dir = QFileInfo(m_tempBinaryPath).dir();
+        QDir dir = QFileInfo(entry.tempBinaryPath).dir();
         while (dir.absolutePath() != gamesRoot
                && dir.absolutePath().startsWith(gamesRoot)) {
             QString p = dir.absolutePath();
@@ -238,22 +258,88 @@ void ProcessSpoofer::stopSpoofing()
             dir.cdUp();
         }
 
-        m_tempBinaryPath.clear();
+        entry.tempBinaryPath.clear();
     }
 
     // ── Delete the ACF manifest ──
-    if (!m_manifestPath.isEmpty()) {
-        QFile::remove(m_manifestPath);
-        m_manifestPath.clear();
+    if (!entry.manifestPath.isEmpty()) {
+        QFile::remove(entry.manifestPath);
+        entry.manifestPath.clear();
     }
+}
 
-    // ── Update state ──
-    if (m_isSpoofing) {
-        m_isSpoofing = false;
+// ---------------------------------------------------------------------------
+//  Refresh spoofing state after changes
+// ---------------------------------------------------------------------------
+
+void ProcessSpoofer::refreshSpoofingState()
+{
+    bool wasSpoofing = m_isSpoofing;
+    QString oldName = m_currentProcessName;
+
+    m_isSpoofing = !m_spoofedProcesses.isEmpty();
+
+    if (m_spoofedProcesses.isEmpty()) {
         m_currentProcessName.clear();
-        emit isSpoofingChanged();
-        emit currentProcessNameChanged();
+        m_processHandle = nullptr;
+        m_tempBinaryPath.clear();
+        m_manifestPath.clear();
+    } else {
+        QStringList names = m_spoofedProcesses.keys();
+        if (names.size() == 1) {
+            m_currentProcessName = names.first();
+        } else {
+            m_currentProcessName =
+                QString("%1 games active").arg(names.size());
+        }
     }
 
+    if (m_isSpoofing != wasSpoofing)
+        emit isSpoofingChanged();
+    if (m_currentProcessName != oldName)
+        emit currentProcessNameChanged();
+    emit spoofedProcessesChanged();
+}
+
+// ---------------------------------------------------------------------------
+//  Stop a single process by name
+// ---------------------------------------------------------------------------
+
+void ProcessSpoofer::stopSpoofingProcess(const QString &processName)
+{
+    if (!m_spoofedProcesses.contains(processName))
+        return;
+
+    SpoofEntry entry = m_spoofedProcesses.take(processName);
+    killAndCleanEntry(entry);
+
+    refreshSpoofingState();
+}
+
+// ---------------------------------------------------------------------------
+//  Legacy stop — now stops all
+// ---------------------------------------------------------------------------
+
+void ProcessSpoofer::stopSpoofing()
+{
+    stopAllSpoofing();
+}
+
+// ---------------------------------------------------------------------------
+//  Stop all processes
+// ---------------------------------------------------------------------------
+
+void ProcessSpoofer::stopAllSpoofing()
+{
+    if (m_stopping) return;
+    m_stopping = true;
+
+    QStringList keys = m_spoofedProcesses.keys();
+    for (const QString &name : keys) {
+        SpoofEntry entry = m_spoofedProcesses.take(name);
+        killAndCleanEntry(entry);
+    }
+
+    refreshSpoofingState();
     m_stopping = false;
 }
