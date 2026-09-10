@@ -5,15 +5,17 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
 
-find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick QuickControls2 Network)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui Widgets Qml Quick QuickControls2 Network)
 
 qt_standard_project_setup()
 
 # ── Platform-specific source selection ──
 if(WIN32)
     set(SPOOFER_SRC src/ProcessSpoofer_windows.cpp)
+    set(ORBY_RC windows/orby.rc)
 else()
     set(SPOOFER_SRC src/ProcessSpoofer_linux.cpp)
+    set(ORBY_RC "")
 endif()
 
 # ── Main GUI executable ──
@@ -23,6 +25,16 @@ qt_add_executable(appOrby
     ${SPOOFER_SRC}
     src/DiscordApi.h
     src/DiscordApi.cpp
+    src/TrayManager.h
+    src/TrayManager.cpp
+    ${ORBY_RC}
+)
+
+qt_add_resources(appOrby "app_icons"
+    PREFIX "/"
+    FILES
+        icons/orby.png
+        icons/orby.svg
 )
 
 qt_add_qml_module(appOrby
@@ -33,7 +45,7 @@ qt_add_qml_module(appOrby
 )
 
 target_link_libraries(appOrby
-    PRIVATE Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Network
+    PRIVATE Qt6::Core Qt6::Gui Qt6::Widgets Qt6::Qml Qt6::Quick Qt6::QuickControls2 Qt6::Network
 )
 
 # ── Release optimization flags for main executable ──
@@ -58,8 +70,8 @@ if(WIN32)
         WIN32_EXECUTABLE TRUE
     )
 
-    # ── Minimal dummy executable ──
-    add_executable(dummy WIN32 windows/dummy.cpp)
+    # ── Minimal dummy executable with embedded icon ──
+    add_executable(dummy WIN32 windows/dummy.cpp ${ORBY_RC})
     set_target_properties(dummy PROPERTIES
         WIN32_EXECUTABLE TRUE
     )
