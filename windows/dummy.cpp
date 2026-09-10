@@ -64,12 +64,16 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
         if (g_hFontText)  SendMessageW(hSub,   WM_SETFONT, (WPARAM)g_hFontText,  TRUE);
 
         // System Tray Icon
+        HINSTANCE hInst = (HINSTANCE)GetWindowLongPtrW(hWnd, GWLP_HINSTANCE);
+        HICON hAppIcon = (HICON)LoadImageW(hInst, MAKEINTRESOURCEW(1), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_SHARED);
+        if (!hAppIcon) hAppIcon = LoadIconW(NULL, (LPCWSTR)IDI_APPLICATION);
+
         g_nid.cbSize = sizeof(NOTIFYICONDATAW);
         g_nid.hWnd = hWnd;
         g_nid.uID = 1;
         g_nid.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
         g_nid.uCallbackMessage = WM_TRAY_MESSAGE;
-        g_nid.hIcon = LoadIcon(NULL, IDI_APPLICATION);
+        g_nid.hIcon = hAppIcon;
         wcsncpy_s(g_nid.szTip, g_szGameName, 127);
         Shell_NotifyIconW(NIM_ADD, &g_nid);
         break;
@@ -161,13 +165,16 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     const wchar_t CLASS_NAME[] = L"OrbyGameWindow";
 
+    HICON hAppIcon = (HICON)LoadImageW(hInstance, MAKEINTRESOURCEW(1), IMAGE_ICON, 0, 0, LR_DEFAULTSIZE | LR_SHARED);
+    if (!hAppIcon) hAppIcon = LoadIconW(NULL, (LPCWSTR)IDI_APPLICATION);
+
     WNDCLASSW wc = { 0 };
     wc.lpfnWndProc   = WndProc;
     wc.hInstance     = hInstance;
     wc.lpszClassName = CLASS_NAME;
     wc.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
     wc.hCursor       = LoadCursor(NULL, IDC_ARROW);
-    wc.hIcon         = LoadIcon(NULL, IDI_APPLICATION);
+    wc.hIcon         = hAppIcon;
     RegisterClassW(&wc);
 
     // Create a visible top-level window titled with the game's name.
