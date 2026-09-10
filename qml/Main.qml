@@ -12,6 +12,35 @@ Window {
     title: "Orby"
     color: md.background
 
+    onClosing: function(close) {
+        if (typeof trayManager !== "undefined" && trayManager.closeToTray && trayManager.isSystemTrayAvailable) {
+            close.accepted = false
+            window.hide()
+            trayManager.notifyClosedToTray()
+        }
+    }
+
+    Connections {
+        target: (typeof trayManager !== "undefined") ? trayManager : null
+        function onShowWindowRequested() {
+            window.show()
+            window.raise()
+            window.requestActivate()
+        }
+        function onHideWindowRequested() {
+            window.hide()
+        }
+        function onToggleWindowRequested() {
+            if (window.visible) {
+                window.hide()
+            } else {
+                window.show()
+                window.raise()
+                window.requestActivate()
+            }
+        }
+    }
+
     QtObject {
         id: md
 
@@ -965,6 +994,32 @@ Window {
                             spoofer.stopAllSpoofing()
                             activeGamesModal.close()
                         }
+                    }
+
+                    Button {
+                        id: dialogQuitBtn
+                        text: "Quit Orby"
+                        font.family: "Inter"
+                        font.weight: Font.Medium
+                        font.pixelSize: 13
+                        Layout.preferredHeight: 38
+                        Layout.preferredWidth: 95
+
+                        background: Rectangle {
+                            radius: 8
+                            color: dialogQuitBtn.hovered ? md.surfaceContainerHighest : "transparent"
+                            border.color: md.outlineVariant
+                            border.width: 1
+                        }
+                        contentItem: Text {
+                            text: dialogQuitBtn.text
+                            color: md.surfaceVariantFg
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
+                            font: dialogQuitBtn.font
+                        }
+
+                        onClicked: Qt.quit()
                     }
 
                     Item { Layout.fillWidth: true }
