@@ -135,13 +135,14 @@ Window {
                         border.color: md.primary
                         border.width: 1.5
                         radius: 6
-                        implicitWidth: 54
+                        implicitWidth: Math.max(54, osBadgeText.implicitWidth + 14)
                         implicitHeight: 20
                         Layout.alignment: Qt.AlignVCenter
 
                         Text {
+                            id: osBadgeText
                             anchors.centerIn: parent
-                            text: "LINUX"
+                            text: Qt.platform.os === "windows" ? "WINDOWS" : (Qt.platform.os === "linux" ? "LINUX" : Qt.platform.os.toUpperCase())
                             color: md.primaryContainerFg
                             font.family: "Inter"
                             font.pixelSize: 10
@@ -599,7 +600,8 @@ Window {
                                 } else {
                                     spoofer.startSpoofing(modelData.primaryExecutable,
                                                           modelData.name,
-                                                          modelData.steamAppId ?? "")
+                                                          modelData.steamAppId ?? "",
+                                                          modelData.id ?? "")
                                 }
                             }
                         }

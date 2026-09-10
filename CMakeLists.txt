@@ -63,6 +63,7 @@ if(WIN32)
     set_target_properties(dummy PROPERTIES
         WIN32_EXECUTABLE TRUE
     )
+    target_link_libraries(dummy PRIVATE user32 gdi32 shell32)
 
     # Size-optimized compiler flags for dummy
     if(MSVC)

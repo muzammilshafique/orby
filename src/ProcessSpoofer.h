@@ -35,7 +35,8 @@ public:
 public slots:
     void startSpoofing(const QString &processName,
                        const QString &gameName = QString(),
-                       const QString &steamAppId = QString());
+                       const QString &steamAppId = QString(),
+                       const QString &gameId = QString());
     void stopSpoofing();             // stops the first / legacy single process
     void stopSpoofingProcess(const QString &processName);
     void stopAllSpoofing();
@@ -60,9 +61,11 @@ private:
     // Multi-process tracking
     struct SpoofEntry {
         HANDLE processHandle = nullptr;
+        DWORD processId = 0;
         QString tempBinaryPath;
         QString manifestPath;
         QString exeDir;       // for empty-directory cleanup
+        QString gameFolder;   // root game directory under games/
     };
     QMap<QString, SpoofEntry> m_spoofedProcesses;
 

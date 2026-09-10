@@ -32,10 +32,29 @@ void DiscordApi::fetchGames()
 
     QUrl url("https://discord.com/api/v9/applications/detectable");
     QNetworkRequest request(url);
+#if defined(Q_OS_WIN)
+    request.setHeader(QNetworkRequest::UserAgentHeader, "Orby/1.0 (Windows)");
+#elif defined(Q_OS_LINUX)
     request.setHeader(QNetworkRequest::UserAgentHeader, "Orby/1.0 (Linux)");
+#elif defined(Q_OS_MAC)
+    request.setHeader(QNetworkRequest::UserAgentHeader, "Orby/1.0 (macOS)");
+#else
+    request.setHeader(QNetworkRequest::UserAgentHeader, "Orby/1.0");
+#endif
     
     m_reply = m_networkManager.get(request);
     connect(m_reply, &QNetworkReply::finished, this, &DiscordApi::onReplyFinished);
+}
+
+static bool isValidExecutableName(const QString &name)
+{
+    if (name.isEmpty())
+        return false;
+    for (QChar c : QStringLiteral("<>:\"|?*")) {
+        if (name.contains(c))
+            return false;
+    }
+    return true;
 }
 
 void DiscordApi::onReplyFinished()
@@ -69,18 +88,6 @@ void DiscordApi::onReplyFinished()
         return;
     }
 
-    // On Windows, only show executables tagged for win32 (we need real .exe files).
-    // On Linux/macOS, show ALL executables regardless of OS tag — the spoofer
-    // just renames a copy of 'sleep', so any process name works. Discord's
-    // database has ~10,000 games but very few have explicit linux entries.
-#ifdef Q_OS_WIN
-    const bool filterByOs = true;
-    const QString targetOs = QStringLiteral("win32");
-#else
-    const bool filterByOs = false;
-    const QString targetOs;
-#endif
-
     QVariantList newGames;
     QJsonArray array = doc.array();
 
@@ -89,27 +96,41 @@ void DiscordApi::onReplyFinished()
         QString name = obj["name"].toString();
 
         QJsonArray execs = obj["executables"].toArray();
-        QStringList executableNames;
+        QStringList win32Execs;
+        QStringList allValidExecs;
+
         for (const QJsonValue &e : execs) {
             QJsonObject execObj = e.toObject();
+            QString execOs = execObj["os"].toString();
+            QString execName = execObj["name"].toString().trimmed();
 
-            if (filterByOs) {
-                QString execOs = execObj["os"].toString();
-                if (execOs != targetOs)
-                    continue;
+            // Normalize path separators
+            execName.replace('\\', '/');
+
+            // Strip leading '>' if present (Discord internal argument matching flag)
+            if (execName.startsWith('>'))
+                execName.remove(0, 1);
+
+            // Strip leading slashes
+            while (execName.startsWith('/'))
+                execName.remove(0, 1);
+
+            if (!isValidExecutableName(execName))
+                continue;
+
+            if (execOs == QStringLiteral("win32")) {
+                if (!win32Execs.contains(execName))
+                    win32Execs.append(execName);
             }
-
-            QString execName = execObj["name"].toString();
-#ifdef Q_OS_WIN
-            // On Windows, strip path prefixes — Discord matches by filename.
-            // e.g. "game/client/eso64.exe" → "eso64.exe"
-            int lastSlash = execName.lastIndexOf('/');
-            if (lastSlash >= 0)
-                execName = execName.mid(lastSlash + 1);
-#endif
-            if (!execName.isEmpty() && !executableNames.contains(execName))
-                executableNames.append(execName);
+            if (!allValidExecs.contains(execName))
+                allValidExecs.append(execName);
         }
+
+#ifdef Q_OS_WIN
+        QStringList executableNames = !win32Execs.isEmpty() ? win32Execs : allValidExecs;
+#else
+        QStringList executableNames = allValidExecs;
+#endif
 
         if (name.isEmpty() || executableNames.isEmpty()) {
             continue;

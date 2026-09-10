@@ -37,9 +37,11 @@ bool ProcessSpoofer::isSpoofingProcess(const QString &processName) const {
 
 void ProcessSpoofer::startSpoofing(const QString &processName,
                                    const QString &gameName,
-                                   const QString &steamAppId) {
+                                   const QString &steamAppId,
+                                   const QString &gameId) {
   Q_UNUSED(gameName)
   Q_UNUSED(steamAppId)
+  Q_UNUSED(gameId)
 
   // If already spoofing this specific process, do nothing
   if (m_spoofedProcesses.contains(processName)) {
