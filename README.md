@@ -121,9 +121,9 @@ Orby/
 
 Contributions are welcome! If you'd like to improve Orby:
 1. Fork the repository.
-2. Create a new branch (`git checkout -b feature/awesome-feature`).
-3. Commit your changes (`git commit -m 'Add awesome feature'`).
-4. Push to the branch (`git push origin feature/awesome-feature`).
+2. Create a new branch.
+3. Commit your change.
+4. Push to the branch. 
 5. Open a Pull Request.
 
 Please ensure your code follows standard C++ and Qt best practices.
