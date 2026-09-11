@@ -4,7 +4,7 @@
 ![Platform](https://img.shields.io/badge/platform-Linux%20|%20Windows-lightgrey.svg)
 ![Build](https://img.shields.io/badge/build-passing-brightgreen.svg)
 
-**Orby** is a sleek, native Linux desktop application that allows you to safely spoof background game processes. 
+**Orby** is a sleek, native Linux and windows desktop application that allows you to safely spoof background game processes. 
 
 Perfect for completing Discord Quests without needing to install, configure, or run massive multi-gigabyte games just to fulfill playtime requirements.
 
@@ -76,7 +76,7 @@ cmake --build . -j$(nproc)
 ./orby
 ```
 
-### Windows (Broken Currently)
+### Windows
 
 1. **Install Dependencies:**
    - Install **Qt 6** using the Qt Online Installer (include Desktop MSVC or MinGW).
