@@ -37,6 +37,13 @@ qt_add_resources(appOrby "app_icons"
         icons/orby.svg
 )
 
+qt_add_resources(appOrby "app_fonts"
+    PREFIX "/"
+    FILES
+        fonts/GoogleSansFlex.ttf
+        fonts/MaterialSymbolsRounded.ttf
+)
+
 qt_add_qml_module(appOrby
     URI Orby
     VERSION 1.0
