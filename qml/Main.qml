@@ -381,7 +381,7 @@ Window {
                 }
 
                 ToolTip.visible: refreshMouse.containsMouse
-                ToolTip.text: "Refresh games with lazy loading"
+                ToolTip.text: "Refresh Games List"
                 ToolTip.delay: 400
             }
         }
