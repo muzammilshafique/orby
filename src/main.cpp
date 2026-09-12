@@ -15,6 +15,7 @@ int main(int argc, char *argv[]) {
   app.setOrganizationName("orby");
   app.setOrganizationDomain("orby.org");
   app.setApplicationName("Orby");
+  app.setDesktopFileName(QStringLiteral("orby"));
   app.setWindowIcon(QIcon(":/icons/orby.png"));
 
   // Load bundled Google Sans and Material Symbols fonts
