@@ -59,6 +59,11 @@ To build or run **Orby**, your system must have the Qt6 development packages and
    ```bash
    orby
    ```
+4. **Uninstall:**
+   To completely uninstall Orby and remove all runtime cache and data:
+   ```bash
+   ./linux/uninstall.sh
+   ```
 
 ### Manual Build (Without Installing)
 
@@ -67,13 +72,11 @@ If you prefer to compile the binary manually without installing the desktop entr
 ```bash
 git clone https://github.com/muzammilshafique/orby.git
 cd orby
-mkdir build 
-cd build
-cmake -DCMAKE_BUILD_TYPE=Release ..
-cmake --build . -j$(nproc)
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build -j$(nproc)
 
 # Run the compiled binary
-./orby
+./build/orby
 ```
 
 ### Windows
