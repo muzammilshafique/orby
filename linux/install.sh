@@ -151,6 +151,8 @@ log_ok "Installed binary to $BIN_DIR/orby"
 
 # Install icons (scalable SVG + 256x256 PNG for standard XDG icon theme compatibility)
 install -Dm644 "icons/orby.svg" "$ICON_SCALABLE_DIR/orby.svg"
+install -Dm644 "icons/orby-tray.svg" "$ICON_SCALABLE_DIR/orby-tray.svg"
+install -Dm644 "icons/orby-tray-dark.svg" "$ICON_SCALABLE_DIR/orby-tray-dark.svg"
 install -Dm644 "icons/orby.png" "$ICON_PNG_DIR/orby.png"
 log_ok "Installed icons to $ICON_THEME_DIR"
 
