@@ -35,6 +35,8 @@ qt_add_resources(appOrby "app_icons"
     FILES
         icons/orby.png
         icons/orby.svg
+        icons/orby-tray.svg
+        icons/orby-tray-dark.svg
 )
 
 qt_add_resources(appOrby "app_fonts"
@@ -110,7 +112,10 @@ if(UNIX AND NOT APPLE)
         DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
     )
 
-    install(FILES icons/orby.svg
+    install(FILES
+        icons/orby.svg
+        icons/orby-tray.svg
+        icons/orby-tray-dark.svg
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
     )
 

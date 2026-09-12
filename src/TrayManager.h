@@ -25,6 +25,7 @@ public:
     Q_INVOKABLE void notifyClosedToTray(const QString &activeGamesSummary = QString());
     Q_INVOKABLE void showMessage(const QString &title, const QString &message, int durationMs = 3000);
     Q_INVOKABLE void setTrayToolTip(const QString &tooltip);
+    Q_INVOKABLE void updateTrayIcon();
 
 signals:
     void showWindowRequested();
@@ -42,6 +43,11 @@ private:
     bool m_notifiedOnce = false;
 
     void setupMenu();
+    void setupThemeMonitoring();
+    QIcon getThemedTrayIcon() const;
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 };
 
 #endif // TRAYMANAGER_H

@@ -8,6 +8,9 @@
 #include <QDir>
 #include <QFile>
 #include <QStandardPaths>
+#include <QStyleHints>
+#include <QPalette>
+#include <QPixmap>
 
 TrayManager::TrayManager(QObject *parent)
     : QObject(parent)
@@ -23,10 +26,11 @@ TrayManager::TrayManager(QObject *parent)
 #endif
 
     if (QSystemTrayIcon::isSystemTrayAvailable()) {
-        m_trayIcon = new QSystemTrayIcon(QIcon(QStringLiteral(":/icons/orby.png")), this);
+        m_trayIcon = new QSystemTrayIcon(getThemedTrayIcon(), this);
         m_trayIcon->setToolTip(QStringLiteral("Orby — Discord Game Presence Spoofer"));
 
         setupMenu();
+        setupThemeMonitoring();
 
         connect(m_trayIcon, &QSystemTrayIcon::activated,
                 this, &TrayManager::onActivated);
@@ -122,21 +126,16 @@ void TrayManager::notifyClosedToTray(const QString &activeGamesSummary)
             message = QStringLiteral("Presence spoofing is active in background.\nClick tray icon to reopen Orby.");
         }
 
-        const QIcon icon = (m_trayIcon && !m_trayIcon->icon().isNull()) 
-            ? m_trayIcon->icon() 
-            : QIcon(QStringLiteral(":/icons/orby.png"));
-
-        m_trayIcon->showMessage(title, message, icon, 4000);
+        const QIcon notifIcon(QStringLiteral(":/icons/orby.png"));
+        m_trayIcon->showMessage(title, message, notifIcon, 4000);
     }
 }
 
 void TrayManager::showMessage(const QString &title, const QString &message, int durationMs)
 {
     if (m_trayIcon && m_trayIcon->isVisible()) {
-        const QIcon icon = (m_trayIcon && !m_trayIcon->icon().isNull()) 
-            ? m_trayIcon->icon() 
-            : QIcon(QStringLiteral(":/icons/orby.png"));
-        m_trayIcon->showMessage(title, message, icon, durationMs);
+        const QIcon notifIcon(QStringLiteral(":/icons/orby.png"));
+        m_trayIcon->showMessage(title, message, notifIcon, durationMs);
     }
 }
 
@@ -147,4 +146,94 @@ void TrayManager::setTrayToolTip(const QString &tooltip)
             ? QStringLiteral("Orby — Discord Game Presence Spoofer") 
             : tooltip);
     }
+}
+
+void TrayManager::updateTrayIcon()
+{
+    if (m_trayIcon) {
+        m_trayIcon->setIcon(getThemedTrayIcon());
+    }
+}
+
+void TrayManager::setupThemeMonitoring()
+{
+#ifdef Q_OS_LINUX
+    // Listen to Qt styleHints for color scheme changes (FreeDesktop portal / KDE / GNOME)
+    if (QGuiApplication::styleHints()) {
+        connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
+                this, [this](Qt::ColorScheme scheme) {
+                    qDebug() << "[Orby] System color scheme changed to:" << scheme;
+                    updateTrayIcon();
+                });
+    }
+
+    // Monitor application-wide palette and theme change events
+    qApp->installEventFilter(this);
+#endif
+}
+
+bool TrayManager::eventFilter(QObject *watched, QEvent *event)
+{
+#ifdef Q_OS_LINUX
+    if (watched == qApp && (event->type() == QEvent::ApplicationPaletteChange || 
+                            event->type() == QEvent::ThemeChange)) {
+        updateTrayIcon();
+    }
+#endif
+    return QObject::eventFilter(watched, event);
+}
+
+QIcon TrayManager::getThemedTrayIcon() const
+{
+#ifdef Q_OS_LINUX
+    bool isDark = true;
+
+    // 1. Query Qt style hints (connected via FreeDesktop portal / Wayland)
+    if (QGuiApplication::styleHints()) {
+        auto scheme = QGuiApplication::styleHints()->colorScheme();
+        if (scheme == Qt::ColorScheme::Dark) {
+            isDark = true;
+        } else if (scheme == Qt::ColorScheme::Light) {
+            isDark = false;
+        } else {
+            // Fallback: check window/panel brightness from palette
+            QColor windowColor = QApplication::palette().color(QPalette::Window);
+            isDark = (windowColor.lightness() < 128);
+        }
+    } else {
+        QColor windowColor = QApplication::palette().color(QPalette::Window);
+        isDark = (windowColor.lightness() < 128);
+    }
+
+    if (isDark) {
+        // Dark theme: panel background is dark, show crisp white icon
+        QIcon lightIcon(QStringLiteral(":/icons/orby-tray.svg"));
+        if (!lightIcon.isNull()) {
+            return lightIcon;
+        }
+    } else {
+        // Light theme: panel background is light, show dark icon
+        QIcon darkIcon(QStringLiteral(":/icons/orby-tray-dark.svg"));
+        if (!darkIcon.isNull()) {
+            return darkIcon;
+        }
+
+        // Dynamic recoloring fallback if SVG asset missing
+        QFile file(QStringLiteral(":/icons/orby-tray.svg"));
+        if (file.open(QIODevice::ReadOnly)) {
+            QByteArray svgData = file.readAll();
+            file.close();
+            svgData.replace("fill:#ffffff", "fill:#1C1B1F");
+            svgData.replace("fill:#FFFFFF", "fill:#1C1B1F");
+            QPixmap pixmap;
+            if (pixmap.loadFromData(svgData, "SVG")) {
+                return QIcon(pixmap);
+            }
+        }
+    }
+
+    return QIcon(QStringLiteral(":/icons/orby-tray.svg"));
+#else
+    return QIcon(QStringLiteral(":/icons/orby.png"));
+#endif
 }
