@@ -1,10 +1,12 @@
 [Desktop Entry]
+Type=Application
 Name=Orby
 GenericName=Discord Quest Companion
-Comment=A modern Discord Quest companion for Linux
+Comment=Sleek background game process spoofer for Discord Quests
 Exec=orby
 Icon=orby
 Terminal=false
-Type=Application
 Categories=Utility;Network;
 StartupNotify=true
+StartupWMClass=Orby
+Keywords=discord;quest;spoofer;spoof;game;
