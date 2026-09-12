@@ -3,6 +3,7 @@
 #include "TrayManager.h"
 
 #include <QApplication>
+#include <QFontDatabase>
 #include <QIcon>
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
@@ -15,6 +16,13 @@ int main(int argc, char *argv[]) {
   app.setOrganizationDomain("orby.org");
   app.setApplicationName("Orby");
   app.setWindowIcon(QIcon(":/icons/orby.png"));
+
+  // Load bundled Google Sans and Material Symbols fonts
+  QFontDatabase::addApplicationFont(":/fonts/GoogleSansFlex.ttf");
+  QFontDatabase::addApplicationFont(":/fonts/MaterialSymbolsRounded.ttf");
+
+  QFont defaultFont("Google Sans Flex", 10);
+  app.setFont(defaultFont);
 
   // Keep application running in tray when the window is closed
   app.setQuitOnLastWindowClosed(false);
