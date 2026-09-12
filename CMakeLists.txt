@@ -59,7 +59,7 @@ else()
         $<$<CONFIG:Release>:-O2 -ffunction-sections -fdata-sections>
     )
     target_link_options(appOrby PRIVATE
-        $<$<CONFIG:Release>:-Wl,--gc-sections -s>
+        $<$<CONFIG:Release>:-Wl,--gc-sections>
     )
 endif()
 
@@ -88,5 +88,26 @@ if(WIN32)
 else()
     set_target_properties(appOrby PROPERTIES
         OUTPUT_NAME "orby"
+    )
+endif()
+
+# ── Installation rules (Linux / UNIX) ──
+if(UNIX AND NOT APPLE)
+    include(GNUInstallDirs)
+
+    install(TARGETS appOrby
+        RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
+    )
+
+    install(FILES linux/orby.desktop
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/applications
+    )
+
+    install(FILES icons/orby.svg
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/scalable/apps
+    )
+
+    install(FILES icons/orby.png
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
     )
 endif()
