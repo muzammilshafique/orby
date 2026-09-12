@@ -2,21 +2,30 @@ import QtQuick
 import QtQuick.Controls
 import QtQuick.Layouts
 import QtQuick.Window
+import QtQuick.Shapes
 import Orby 1.0
 
 Window {
     id: window
-    width: 520
-    height: 740
+    width: 480
+    height: 720
+    minimumWidth: 420
+    minimumHeight: 580
     visible: true
-    title: "Orby"
-    color: md.background
+    title: "Orby — Discord Game Presence Spoofer"
+    color: md.surface
 
     onClosing: function(close) {
-        if (typeof trayManager !== "undefined" && trayManager.closeToTray && trayManager.isSystemTrayAvailable) {
+        if (typeof spoofer !== "undefined" && spoofer.isSpoofing && typeof trayManager !== "undefined" && trayManager.closeToTray && trayManager.isSystemTrayAvailable) {
             close.accepted = false
             window.hide()
             trayManager.notifyClosedToTray()
+        } else {
+            close.accepted = true
+            if (typeof spoofer !== "undefined") {
+                spoofer.stopAllSpoofing()
+            }
+            Qt.quit()
         }
     }
 
@@ -41,57 +50,110 @@ Window {
         }
     }
 
+    // ════════════════════════════════════════════════════════════════
+    //  Google Material 3 (Material You) Design System Tokens
+    // ════════════════════════════════════════════════════════════════
     QtObject {
         id: md
 
-        // Primary: Vibrant Blue
-        readonly property color primary:               "#A8C7FA"
-        readonly property color primaryFg:              "#062E6F"
-        readonly property color primaryContainer:       "#0842A0"
-        readonly property color primaryContainerFg:     "#D3E3FD"
+        // Typography
+        readonly property string fontFamily: "Google Sans Flex"
+        readonly property string iconFont:   "Material Symbols Rounded"
 
-        // Secondary: Vibrant Cyan Accent
+        // Primary Accent (Material 3 Dynamic Blue)
+        readonly property color primary:                "#A8C7FA"
+        readonly property color primaryFg:              "#062E6F"
+        readonly property color primaryContainer:        "#1E3A68"
+        readonly property color primaryContainerFg:      "#D3E3FD"
+
+        // Secondary Accent (Material Cyan)
         readonly property color secondary:              "#7FCFFF"
         readonly property color secondaryFg:            "#003549"
-        readonly property color secondaryContainer:     "#004D68"
-        readonly property color secondaryContainerFg:   "#C2E7FF"
+        readonly property color secondaryContainer:      "#004D68"
+        readonly property color secondaryContainerFg:    "#C2E7FF"
 
-        // Tertiary: Green / Active Spoofing Accent
+        // Tertiary Accent (Material Emerald / Active Mint)
         readonly property color tertiary:               "#6DD58C"
         readonly property color tertiaryFg:             "#0A3818"
-        readonly property color tertiaryContainer:      "#0E3E1E"
-        readonly property color tertiaryContainerFg:    "#C4EED0"
+        readonly property color tertiaryContainer:       "#123B22"
+        readonly property color tertiaryContainerFg:     "#C4EED0"
 
-        // Error: Red
-        readonly property color error:                  "#FF897D"
-        readonly property color errorFg:                "#601410"
-        readonly property color errorContainer:         "#410E0B"
-        readonly property color errorContainerFg:       "#F9DEDC"
+        // Error Tonal (Material Coral Red)
+        readonly property color error:                  "#FFB4AB"
+        readonly property color errorFg:                "#690005"
+        readonly property color errorContainer:          "#4D1418"
+        readonly property color errorContainerFg:        "#FFDAD6"
 
-        // Surfaces & Elevation (Dark)
-        readonly property color background:             "#111318"
-        readonly property color surface:                "#111318"
-        readonly property color surfaceContainerLowest: "#0C0E12"
-        readonly property color surfaceContainerLow:    "#191C20"
-        readonly property color surfaceContainer:       "#1D2024"
-        readonly property color surfaceContainerHigh:   "#282A2F"
-        readonly property color surfaceContainerHighest:"#33353A"
-        readonly property color surfaceBright:          "#37393E"
+        // Dark Surface Hierarchy (Android 14/15 Tonal Levels)
+        readonly property color surface:                "#0E1015"
+        readonly property color surfaceDim:             "#0A0C0F"
+        readonly property color surfaceBright:          "#2D3139"
+        readonly property color surfaceContainerLowest: "#08090C"
+        readonly property color surfaceContainerLow:    "#13161C"
+        readonly property color surfaceContainer:       "#191D24"
+        readonly property color surfaceContainerHigh:   "#21252E"
+        readonly property color surfaceContainerHighest:"#2B303B"
 
-        // High-contrast Outlines & Borders (Bolder Borders)
-        readonly property color outline:                "#8E9199"
-        readonly property color outlineVariant:         "#44474E"
-        readonly property color borderActive:           "#A8C7FA"
-        readonly property color borderTertiary:         "#6DD58C"
-        readonly property color borderError:            "#FF897D"
+        // Outlines & Borders
+        readonly property color outline:                "#8A909D"
+        readonly property color outlineVariant:         "#3A3F4B"
+        readonly property color outlineSubtle:          "#262A33"
 
-        // Foreground / On-surface
-        readonly property color surfaceFg:              "#E2E2E6"
-        readonly property color surfaceVariantFg:       "#C4C6D0"
+        // Foreground Content
+        readonly property color surfaceFg:              "#E6E8EE"
+        readonly property color surfaceVariantFg:       "#B0B5C2"
+        readonly property color surfaceSubtleFg:        "#787E8C"
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  Backend instances
+    //  Reusable Material Symbols Rounded Icon Component
+    // ════════════════════════════════════════════════════════════════
+    component MaterialIcon: Text {
+        id: iconRoot
+        property string name: ""
+        property int size: 20
+        property color iconColor: md.surfaceVariantFg
+        property bool filled: false
+
+        width: size
+        height: size
+        text: {
+            switch(name) {
+                case "search":            return "\uE8B6";
+                case "close":             return "\uE5CD";
+                case "sports_esports":    return "\uEA28";
+                case "play_arrow":        return "\uE037";
+                case "stop":              return "\uE047";
+                case "refresh":           return "\uE5D5";
+                case "check":             return "\uE5CA";
+                case "check_circle":      return "\uF0BE";
+                case "layers":            return "\uE53B";
+                case "tune":              return "\uE429";
+                case "info":              return "\uE88E";
+                case "bolt":              return "\uEA0B";
+                case "delete":            return "\uE92E";
+                case "expand_more":       return "\uE5CF";
+                case "arrow_forward":     return "\uE5C8";
+                case "terminal":          return "\uEB8E";
+                case "filter_list":       return "\uE152";
+                case "shield":            return "\uE9E0";
+                case "power_settings_new":return "\uF8C7";
+                case "help":              return "\uE8FD";
+                case "settings":          return "\uE8B8";
+                case "fiber_manual_record":return "\uE061";
+                default:                  return name;
+            }
+        }
+        font.family: md.iconFont
+        font.pixelSize: size
+        font.variableAxes: { "FILL": filled ? 1.0 : 0.0 }
+        color: iconColor
+        horizontalAlignment: Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+    }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Backend Instances
     // ════════════════════════════════════════════════════════════════
     DiscordApi {
         id: discordApi
@@ -104,7 +166,15 @@ Window {
         onErrorOccurred: (msg) => console.warn("[Spoofer]", msg)
     }
 
-    // Helper to find human-readable game name for an executable
+    // Smooth refresh animation timer so users enjoy a sleek lazy-loading wave
+    Timer {
+        id: refreshDelayTimer
+        interval: 650
+        repeat: false
+    }
+
+    readonly property bool isRefreshingOrLoading: discordApi.isLoading || refreshDelayTimer.running
+
     function getGameTitle(execName) {
         if (!discordApi || !discordApi.games) return execName
         let match = discordApi.games.find(g => g.primaryExecutable === execName)
@@ -112,17 +182,38 @@ Window {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  Filtering logic
+    //  Filter & Search State
     // ════════════════════════════════════════════════════════════════
     property var filteredGames: []
+    property string activeFilter: "all" // "all", "active", "popular"
+
+    readonly property var popularKeywords: [
+        "fortnite", "valorant", "genshin", "honkai", "warframe", "apex", 
+        "overwatch", "roblox", "minecraft", "destiny", "rocket league", "pubg", 
+        "league of legends", "dota", "counter-strike", "call of duty", "gta"
+    ]
 
     function updateFilter() {
         let query = searchInput.text.toLowerCase().trim()
-        if (query === "") {
-            filteredGames = discordApi.games
-        } else {
-            filteredGames = discordApi.games.filter(g => g.name.toLowerCase().includes(query))
+        let games = discordApi.games || []
+
+        if (activeFilter === "active") {
+            games = games.filter(g => spoofer.isSpoofingProcess(g.primaryExecutable))
+        } else if (activeFilter === "popular") {
+            games = games.filter(g => {
+                let lower = g.name.toLowerCase()
+                return popularKeywords.some(kw => lower.includes(kw))
+            })
         }
+
+        if (query !== "") {
+            games = games.filter(g => 
+                g.name.toLowerCase().includes(query) || 
+                (g.primaryExecutable && g.primaryExecutable.toLowerCase().includes(query))
+            )
+        }
+
+        filteredGames = games
         gameListView.model = filteredGames
     }
 
@@ -131,52 +222,85 @@ Window {
         function onGamesChanged() { updateFilter() }
     }
 
+    Connections {
+        target: spoofer
+        function onSpoofedProcessesChanged() {
+            if (activeFilter === "active") updateFilter()
+        }
+    }
+
     // ════════════════════════════════════════════════════════════════
     //  Main Layout
     // ════════════════════════════════════════════════════════════════
     ColumnLayout {
         anchors.fill: parent
-        anchors.margins: 18
-        spacing: 14
+        anchors.margins: 20
+        spacing: 16
 
-        // ── Top App Bar ──
+        // ── 1. Top App Bar ──
         RowLayout {
             Layout.fillWidth: true
-            Layout.bottomMargin: 2
             spacing: 12
+
+            // App Icon Squircle
+            Rectangle {
+                width: 44
+                height: 44
+                radius: 14
+                color: md.surfaceContainerHigh
+                border.color: md.outlineVariant
+                border.width: 1
+                Layout.alignment: Qt.AlignVCenter
+
+                Image {
+                    anchors.centerIn: parent
+                    width: 26
+                    height: 26
+                    source: "qrc:/icons/orby.png"
+                    smooth: true
+                    mipmap: true
+                }
+            }
 
             ColumnLayout {
                 spacing: 2
                 Layout.fillWidth: true
+                Layout.alignment: Qt.AlignVCenter
 
                 RowLayout {
                     spacing: 8
+                    Layout.alignment: Qt.AlignVCenter
+
                     Text {
                         text: "Orby"
                         color: md.surfaceFg
-                        font.family: "Inter"
-                        font.pixelSize: 26
+                        font.family: md.fontFamily
+                        font.pixelSize: 22
                         font.weight: Font.Bold
-                        font.letterSpacing: -0.5
+                        font.letterSpacing: -0.4
+                        verticalAlignment: Text.AlignVCenter
+                        Layout.alignment: Qt.AlignVCenter
                     }
+
+                    // OS Platform Chip (Centered with exact 7px top / 7px bottom balance)
                     Rectangle {
                         color: md.primaryContainer
-                        border.color: md.primary
-                        border.width: 1.5
-                        radius: 6
-                        implicitWidth: Math.max(54, osBadgeText.implicitWidth + 14)
-                        implicitHeight: 20
+                        radius: 100
+                        implicitWidth: osText.implicitWidth + 18
+                        implicitHeight: 21
                         Layout.alignment: Qt.AlignVCenter
 
                         Text {
-                            id: osBadgeText
+                            id: osText
                             anchors.centerIn: parent
-                            text: Qt.platform.os === "windows" ? "WINDOWS" : (Qt.platform.os === "linux" ? "LINUX" : Qt.platform.os.toUpperCase())
+                            text: Qt.platform.os === "windows" ? "WINDOWS" : "LINUX"
                             color: md.primaryContainerFg
-                            font.family: "Inter"
+                            font.family: md.fontFamily
                             font.pixelSize: 10
                             font.weight: Font.Bold
-                            font.letterSpacing: 0.8
+                            font.letterSpacing: 0.6
+                            horizontalAlignment: Text.AlignHCenter
+                            verticalAlignment: Text.AlignVCenter
                         }
                     }
                 }
@@ -184,79 +308,140 @@ Window {
                 Text {
                     text: "Discord Game Presence Spoofer"
                     color: md.surfaceVariantFg
-                    font.family: "Inter"
-                    font.pixelSize: 13
+                    font.family: md.fontFamily
+                    font.pixelSize: 12
                     font.weight: Font.Medium
+                    verticalAlignment: Text.AlignVCenter
                 }
+            }
+
+            // Reload / Refresh Library Button
+            Rectangle {
+                id: refreshBtn
+                width: 40
+                height: 40
+                radius: 20
+                color: refreshMouse.containsPress ? md.surfaceContainerHighest : (refreshMouse.containsMouse ? md.surfaceContainerHigh : "transparent")
+                border.color: refreshMouse.containsMouse ? md.outlineVariant : "transparent"
+                border.width: 1
+                Layout.alignment: Qt.AlignVCenter
+
+                MaterialIcon {
+                    id: refreshIcon
+                    anchors.centerIn: parent
+                    name: "refresh"
+                    size: 22
+                    iconColor: refreshMouse.containsMouse ? md.primary : md.surfaceVariantFg
+
+                    RotationAnimator on rotation {
+                        running: isRefreshingOrLoading
+                        from: 0; to: 360
+                        duration: 750
+                        loops: Animation.Infinite
+                    }
+                }
+
+                MouseArea {
+                    id: refreshMouse
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: {
+                        refreshDelayTimer.restart()
+                        discordApi.fetchGames()
+                    }
+                }
+
+                ToolTip.visible: refreshMouse.containsMouse
+                ToolTip.text: "Refresh games with lazy loading"
+                ToolTip.delay: 400
             }
         }
 
-        // ── Status Card (Clickable to view active games dialog) ──
+        // ── 2. Material 3 Hero Status Banner ──
         Rectangle {
-            id: statusCard
+            id: statusBanner
             Layout.fillWidth: true
-            Layout.preferredHeight: 76
-            radius: 10
+            Layout.preferredHeight: spoofer.isSpoofing ? 86 : 74
+            radius: 22
             color: spoofer.isSpoofing ? md.tertiaryContainer : md.surfaceContainer
             border.color: {
                 if (spoofer.isSpoofing) {
-                    return statusCardMouse.containsMouse ? md.primary : md.tertiary
+                    return bannerMouse.containsMouse ? md.secondary : md.tertiary
                 }
-                return statusCardMouse.containsMouse ? md.outline : md.outlineVariant
+                return bannerMouse.containsMouse ? md.outline : md.outlineVariant
             }
-            border.width: spoofer.isSpoofing ? 2 : 1.5
+            border.width: spoofer.isSpoofing ? 1.8 : 1
 
+            Behavior on Layout.preferredHeight {
+                NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+            }
             Behavior on color {
-                ColorAnimation { duration: 250; easing.type: Easing.OutCubic }
+                ColorAnimation { duration: 220; easing.type: Easing.OutCubic }
             }
             Behavior on border.color {
                 ColorAnimation { duration: 200; easing.type: Easing.OutCubic }
             }
 
             MouseArea {
-                id: statusCardMouse
+                id: bannerMouse
                 anchors.fill: parent
                 hoverEnabled: true
                 cursorShape: spoofer.isSpoofing ? Qt.PointingHandCursor : Qt.ArrowCursor
                 onClicked: {
-                    if (spoofer.isSpoofing) {
-                        activeGamesModal.open()
-                    }
+                    if (spoofer.isSpoofing) activeGamesModal.open()
                 }
             }
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 16
-                anchors.rightMargin: 14
-                anchors.topMargin: 10
-                anchors.bottomMargin: 10
-                spacing: 12
+                anchors.leftMargin: 18
+                anchors.rightMargin: 16
+                anchors.topMargin: 12
+                anchors.bottomMargin: 12
+                spacing: 14
 
-                // Pulsing status indicator dot
-                Rectangle {
-                    width: 12
-                    height: 12
-                    radius: 6
-                    color: spoofer.isSpoofing ? md.tertiary : md.outline
+                // Leading Status Icon with Radar / Glow Effect
+                Item {
+                    width: 44
+                    height: 44
                     Layout.alignment: Qt.AlignVCenter
 
-                    SequentialAnimation on opacity {
-                        running: spoofer.isSpoofing
-                        loops: Animation.Infinite
-                        NumberAnimation { to: 0.25; duration: 800; easing.type: Easing.InOutSine }
-                        NumberAnimation { to: 1.0; duration: 800; easing.type: Easing.InOutSine }
+                    // Pulsing radar glow when active
+                    Rectangle {
+                        anchors.centerIn: parent
+                        width: parent.width + 6
+                        height: parent.height + 6
+                        radius: width / 2
+                        color: md.tertiary
+                        opacity: 0.15
+                        visible: spoofer.isSpoofing
+
+                        SequentialAnimation on scale {
+                            running: spoofer.isSpoofing
+                            loops: Animation.Infinite
+                            NumberAnimation { from: 0.85; to: 1.25; duration: 1200; easing.type: Easing.OutQuad }
+                            NumberAnimation { from: 1.25; to: 0.85; duration: 1200; easing.type: Easing.InQuad }
+                        }
                     }
 
-                    Behavior on color {
-                        ColorAnimation { duration: 200 }
-                    }
+                    Rectangle {
+                        anchors.fill: parent
+                        radius: 14
+                        color: spoofer.isSpoofing ? md.tertiary : md.surfaceContainerHigh
+                        border.color: spoofer.isSpoofing ? md.tertiary : md.outlineVariant
+                        border.width: 1
 
-                    Component.onCompleted: opacity = 1.0
-                    onColorChanged: if (!spoofer.isSpoofing) opacity = 1.0
+                        MaterialIcon {
+                            anchors.centerIn: parent
+                            name: spoofer.isSpoofing ? "bolt" : "sports_esports"
+                            size: 24
+                            iconColor: spoofer.isSpoofing ? md.tertiaryFg : md.surfaceVariantFg
+                        }
+                    }
                 }
 
-                // Status text
+                // Status Texts
                 ColumnLayout {
                     spacing: 2
                     Layout.fillWidth: true
@@ -264,118 +449,150 @@ Window {
 
                     RowLayout {
                         spacing: 8
+                        Layout.alignment: Qt.AlignVCenter
+
                         Text {
                             text: {
-                                if (!spoofer.isSpoofing) return "INACTIVE"
+                                if (!spoofer.isSpoofing) return "SYSTEM READY"
                                 let count = spoofer.spoofedCount
-                                return "SPOOFING " + count + " GAME" + (count !== 1 ? "S" : "")
+                                return "SPOOFING ACTIVE (" + count + " " + (count === 1 ? "GAME" : "GAMES") + ")"
                             }
-                            color: spoofer.isSpoofing ? md.tertiary : md.outline
-                            font.family: "Inter"
+                            color: spoofer.isSpoofing ? md.tertiary : md.surfaceSubtleFg
+                            font.family: md.fontFamily
                             font.pixelSize: 11
                             font.weight: Font.Bold
-                            font.letterSpacing: 1.1
-
-                            Behavior on color {
-                                ColorAnimation { duration: 200 }
-                            }
+                            font.letterSpacing: 0.8
+                            verticalAlignment: Text.AlignVCenter
+                            Layout.alignment: Qt.AlignVCenter
                         }
 
-                        // "Click to view" badge hint
+                        // Modal trigger badge
                         Rectangle {
                             visible: spoofer.isSpoofing
-                            color: md.surfaceContainerHigh
-                            border.color: md.outlineVariant
-                            border.width: 1
-                            radius: 4
-                            implicitWidth: 84
-                            implicitHeight: 18
+                            color: md.surfaceContainerHighest
+                            radius: 100
+                            implicitWidth: badgeRow.implicitWidth + 14
+                            implicitHeight: 20
+                            Layout.alignment: Qt.AlignVCenter
 
-                            Text {
+                            Row {
+                                id: badgeRow
                                 anchors.centerIn: parent
-                                text: "Click to view ↗"
-                                color: md.surfaceVariantFg
-                                font.family: "Inter"
-                                font.pixelSize: 10
-                                font.weight: Font.DemiBold
+                                spacing: 4
+
+                                Text {
+                                    text: "View"
+                                    color: md.surfaceFg
+                                    font.family: md.fontFamily
+                                    font.pixelSize: 10
+                                    font.weight: Font.Bold
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.verticalCenterOffset: 1
+                                }
+                                MaterialIcon {
+                                    name: "arrow_forward"
+                                    size: 11
+                                    iconColor: md.primary
+                                    anchors.verticalCenter: parent.verticalCenter
+                                    anchors.verticalCenterOffset: 1
+                                }
                             }
                         }
                     }
 
                     Text {
                         text: {
-                            if (!spoofer.isSpoofing) return "Select a game below to begin"
+                            if (!spoofer.isSpoofing) return "Select a game to spoof its background process"
                             let count = spoofer.spoofedCount
                             if (count === 1) {
-                                return getGameTitle(spoofer.spoofedProcesses[0]) + " is active"
+                                return getGameTitle(spoofer.spoofedProcesses[0])
                             }
-                            return count + " games are currently spoofing"
+                            return count + " games currently running in background"
                         }
                         color: md.surfaceFg
-                        font.family: "Inter"
-                        font.pixelSize: 15
+                        font.family: md.fontFamily
+                        font.pixelSize: 14
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
+                        verticalAlignment: Text.AlignVCenter
                         Layout.fillWidth: true
                     }
                 }
 
-                // Stop All button
-                Button {
+                // Stop All Button (Pill Action - Strictly Centered)
+                Rectangle {
                     id: stopAllBtn
                     visible: spoofer.isSpoofing
-                    text: "Stop All"
-                    font.family: "Inter"
-                    font.weight: Font.Bold
-                    font.pixelSize: 12
-                    Layout.preferredWidth: 82
-                    Layout.preferredHeight: 34
+                    Layout.preferredWidth: 105
+                    Layout.preferredHeight: 38
                     Layout.alignment: Qt.AlignVCenter
+                    radius: 100
+                    color: stopAllMouse.containsPress ? "#4D1115" : (stopAllMouse.containsMouse ? "#63171B" : md.errorContainer)
+                    border.color: stopAllMouse.containsMouse ? md.error : md.errorContainer
+                    border.width: 1
 
-                    background: Rectangle {
-                        radius: 8
-                        color: stopAllBtn.hovered ? "#5C1B1E" : md.errorContainer
-                        border.color: md.borderError
-                        border.width: 1.5
-                        Behavior on color { ColorAnimation { duration: 150 } }
-                    }
-                    contentItem: Text {
-                        text: parent.text
-                        color: md.error
-                        horizontalAlignment: Text.AlignHCenter
-                        verticalAlignment: Text.AlignVCenter
-                        font: parent.font
+                    scale: stopAllMouse.containsPress ? 0.94 : (stopAllMouse.containsMouse ? 1.03 : 1.0)
+                    Behavior on scale { NumberAnimation { duration: 100 } }
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Rectangle {
+                            width: 10
+                            height: 10
+                            radius: 2
+                            color: md.errorContainerFg
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: "Stop All"
+                            color: md.errorContainerFg
+                            font.family: md.fontFamily
+                            font.weight: Font.Bold
+                            font.pixelSize: 12
+                            verticalAlignment: Text.AlignVCenter
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
                     }
 
-                    onClicked: spoofer.stopAllSpoofing()
+                    MouseArea {
+                        id: stopAllMouse
+                        anchors.fill: parent
+                        hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: spoofer.stopAllSpoofing()
+                    }
                 }
             }
         }
 
-        // ── Search Bar (Bold Google Material 3) ──
+        // ── 3. Material 3 Android Pill Search Bar ──
         Rectangle {
+            id: searchBarBox
             Layout.fillWidth: true
-            Layout.preferredHeight: 48
-            radius: 10
+            Layout.preferredHeight: 52
+            radius: 26
             color: md.surfaceContainerHigh
             border.color: searchInput.activeFocus ? md.primary : md.outlineVariant
-            border.width: searchInput.activeFocus ? 2 : 1.5
+            border.width: searchInput.activeFocus ? 2 : 1
 
             Behavior on border.color {
-                ColorAnimation { duration: 150; easing.type: Easing.OutCubic }
+                ColorAnimation { duration: 180; easing.type: Easing.OutCubic }
             }
 
             RowLayout {
                 anchors.fill: parent
-                anchors.leftMargin: 14
+                anchors.leftMargin: 18
                 anchors.rightMargin: 14
-                spacing: 10
+                spacing: 12
 
-                // Search icon
-                Text {
-                    text: "🔍"
-                    font.pixelSize: 14
-                    color: md.surfaceVariantFg
+                MaterialIcon {
+                    name: "search"
+                    size: 22
+                    iconColor: searchInput.activeFocus ? md.primary : md.surfaceVariantFg
                     Layout.alignment: Qt.AlignVCenter
                 }
 
@@ -385,8 +602,9 @@ Window {
                     Layout.alignment: Qt.AlignVCenter
                     verticalAlignment: TextInput.AlignVCenter
                     color: md.surfaceFg
-                    font.family: "Inter"
+                    font.family: md.fontFamily
                     font.pixelSize: 14
+                    font.weight: Font.Medium
                     selectionColor: md.primaryContainer
                     selectedTextColor: md.primaryContainerFg
                     selectByMouse: true
@@ -396,7 +614,7 @@ Window {
                         anchors.fill: parent
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Search games or executables..."
-                        color: md.outline
+                        color: md.surfaceSubtleFg
                         font: parent.font
                         verticalAlignment: Text.AlignVCenter
                         visible: !parent.text && !parent.activeFocus
@@ -405,20 +623,20 @@ Window {
                     onTextChanged: updateFilter()
                 }
 
-                // Clear button
+                // Clear Search Button
                 Rectangle {
                     visible: searchInput.text.length > 0
-                    width: 24
-                    height: 24
-                    radius: 6
+                    width: 28
+                    height: 28
+                    radius: 14
                     color: clearMouse.containsMouse ? md.surfaceContainerHighest : "transparent"
                     Layout.alignment: Qt.AlignVCenter
 
-                    Text {
+                    MaterialIcon {
                         anchors.centerIn: parent
-                        text: "✕"
-                        font.pixelSize: 12
-                        color: md.surfaceFg
+                        name: "close"
+                        size: 16
+                        iconColor: md.surfaceFg
                     }
 
                     MouseArea {
@@ -435,63 +653,305 @@ Window {
             }
         }
 
-        // ── Game count row ──
+        // ── 4. Material 3 Fluid Segmented Pill Bar (Compact & Responsive) ──
         RowLayout {
             Layout.fillWidth: true
-            Layout.leftMargin: 2
-            Layout.rightMargin: 2
+            spacing: 12
 
-            Text {
-                text: {
-                    if (discordApi.isLoading) return "Loading library..."
-                    let total = gameListView.count
-                    return total + " game" + (total !== 1 ? "s" : "") + (searchInput.text ? " matching" : " available")
+            Rectangle {
+                id: fluidPillTrack
+                implicitHeight: 38
+                implicitWidth: pillRow.implicitWidth + 8
+                radius: 100
+                color: md.surfaceContainer
+                border.color: md.outlineSubtle
+                border.width: 1
+
+                // Animated Fluid Indicator Capsule
+                Rectangle {
+                    id: fluidIndicator
+                    y: pillRow.y
+                    height: pillRow.height
+                    radius: 100
+                    color: md.primaryContainer
+                    border.color: md.primary
+                    border.width: 1.2
+                    z: 1
+
+                    // Target dynamic coordinates aligned to pillRow offset
+                    x: {
+                        if (activeFilter === "all") return pillRow.x + pillAll.x
+                        if (activeFilter === "active") return pillRow.x + pillActive.x
+                        if (activeFilter === "popular") return pillRow.x + pillPopular.x
+                        return pillRow.x + pillAll.x
+                    }
+                    width: {
+                        if (activeFilter === "all") return pillAll.width
+                        if (activeFilter === "active") return pillActive.width
+                        if (activeFilter === "popular") return pillPopular.width
+                        return pillAll.width
+                    }
+
+                    Behavior on x {
+                        NumberAnimation {
+                            duration: 260
+                            easing.type: Easing.OutCubic
+                        }
+                    }
+                    Behavior on width {
+                        NumberAnimation {
+                            duration: 260
+                            easing.type: Easing.OutCubic
+                        }
+                    }
                 }
-                color: md.outline
-                font.family: "Inter"
-                font.pixelSize: 12
-                font.weight: Font.Medium
+
+                Row {
+                    id: pillRow
+                    anchors.centerIn: parent
+                    spacing: 6
+                    z: 2
+
+                    // Fluid Pill Item Component (Compact, responsive Android M3 style)
+                    component FluidPill: Item {
+                        id: fPill
+                        property string filterKey: ""
+                        property string label: ""
+                        property string iconName: ""
+                        property int badgeCount: 0
+                        property bool isSelected: activeFilter === filterKey
+
+                        implicitHeight: 32
+                        implicitWidth: fPillContent.implicitWidth + 24
+
+                        // Subtle hover tint on unselected pills
+                        Rectangle {
+                            anchors.fill: parent
+                            radius: 100
+                            color: fMouse.containsMouse && !fPill.isSelected ? md.surfaceContainerHigh : "transparent"
+                            Behavior on color { ColorAnimation { duration: 150 } }
+                        }
+
+                        Row {
+                            id: fPillContent
+                            anchors.centerIn: parent
+                            spacing: 6
+
+                            MaterialIcon {
+                                visible: fPill.iconName !== ""
+                                name: fPill.isSelected ? "check" : fPill.iconName
+                                size: 15
+                                iconColor: fPill.isSelected ? md.primary : md.surfaceVariantFg
+                                anchors.verticalCenter: parent.verticalCenter
+                                Behavior on iconColor { ColorAnimation { duration: 200 } }
+                            }
+
+                            Text {
+                                text: fPill.label
+                                color: fPill.isSelected ? md.primaryContainerFg : md.surfaceVariantFg
+                                font.family: md.fontFamily
+                                font.pixelSize: 12
+                                font.weight: fPill.isSelected ? Font.Bold : Font.Medium
+                                verticalAlignment: Text.AlignVCenter
+                                anchors.verticalCenter: parent.verticalCenter
+                                Behavior on color { ColorAnimation { duration: 200 } }
+                            }
+
+                            Rectangle {
+                                visible: fPill.badgeCount > 0
+                                radius: 10
+                                implicitHeight: 18
+                                implicitWidth: fBadgeText.implicitWidth + 10
+                                color: fPill.isSelected ? md.primary : md.surfaceContainerHigh
+                                anchors.verticalCenter: parent.verticalCenter
+                                Behavior on color { ColorAnimation { duration: 200 } }
+
+                                Text {
+                                    id: fBadgeText
+                                    anchors.centerIn: parent
+                                    text: fPill.badgeCount > 999 ? "999+" : fPill.badgeCount
+                                    color: fPill.isSelected ? md.primaryFg : md.surfaceSubtleFg
+                                    font.family: md.fontFamily
+                                    font.pixelSize: 10
+                                    font.weight: Font.Bold
+                                    verticalAlignment: Text.AlignVCenter
+                                    Behavior on color { ColorAnimation { duration: 200 } }
+                                }
+                            }
+                        }
+
+                        MouseArea {
+                            id: fMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                activeFilter = fPill.filterKey
+                                updateFilter()
+                            }
+                        }
+                    }
+
+                    FluidPill {
+                        id: pillAll
+                        filterKey: "all"
+                        label: "All Games"
+                        iconName: "sports_esports"
+                        // Badge removed as requested (no 999+ clutter)
+                    }
+
+                    FluidPill {
+                        id: pillActive
+                        filterKey: "active"
+                        label: "Active"
+                        iconName: "bolt"
+                        badgeCount: spoofer.spoofedCount
+                    }
+
+                    FluidPill {
+                        id: pillPopular
+                        filterKey: "popular"
+                        label: "Popular"
+                        iconName: "tune"
+                    }
+                }
             }
 
             Item { Layout.fillWidth: true }
 
             Text {
-                visible: spoofer.isSpoofing
-                text: spoofer.spoofedCount + " active"
-                color: md.tertiary
-                font.family: "Inter"
+                text: {
+                    if (isRefreshingOrLoading) return "Refreshing..."
+                    return gameListView.count + " shown"
+                }
+                color: md.surfaceSubtleFg
+                font.family: md.fontFamily
                 font.pixelSize: 12
-                font.weight: Font.Bold
+                font.weight: Font.Medium
+                verticalAlignment: Text.AlignVCenter
+                Layout.alignment: Qt.AlignVCenter
             }
         }
 
-        // ── Game List ──
-        Rectangle {
+        // ── 5. Games List View Container ──
+        Item {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            color: "transparent"
             clip: true
 
+            // ── Skeleton Lazy Loading List (Visible when isRefreshingOrLoading) ──
+            ColumnLayout {
+                id: skeletonView
+                anchors.fill: parent
+                spacing: 10
+                visible: opacity > 0.0
+                opacity: isRefreshingOrLoading ? 1.0 : 0.0
+
+                Behavior on opacity {
+                    NumberAnimation { duration: 250; easing.type: Easing.OutCubic }
+                }
+
+                Repeater {
+                    model: 7
+                    Rectangle {
+                        id: skeletonCard
+                        Layout.fillWidth: true
+                        height: 72
+                        radius: 18
+                        color: md.surfaceContainer
+                        border.color: md.outlineSubtle
+                        border.width: 1
+
+                        // Staggered cascade wave shimmer animation
+                        SequentialAnimation on opacity {
+                            running: isRefreshingOrLoading
+                            loops: Animation.Infinite
+                            PauseAnimation { duration: index * 90 }
+                            NumberAnimation { from: 0.35; to: 0.95; duration: 650; easing.type: Easing.InOutSine }
+                            NumberAnimation { from: 0.95; to: 0.35; duration: 650; easing.type: Easing.InOutSine }
+                        }
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.leftMargin: 16
+                            anchors.rightMargin: 14
+                            anchors.topMargin: 10
+                            anchors.bottomMargin: 10
+                            spacing: 14
+
+                            // Skeleton Avatar
+                            Rectangle {
+                                width: 44
+                                height: 44
+                                radius: 14
+                                color: md.surfaceContainerHighest
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+                            }
+
+                            // Skeleton Title & Subtitle lines
+                            ColumnLayout {
+                                spacing: 8
+                                Layout.alignment: Qt.AlignLeft | Qt.AlignVCenter
+
+                                Rectangle {
+                                    height: 14
+                                    radius: 7
+                                    color: md.surfaceContainerHighest
+                                    width: [160, 200, 140, 180, 150, 190, 140][index % 7]
+                                }
+
+                                Rectangle {
+                                    height: 10
+                                    radius: 5
+                                    color: md.surfaceContainerHigh
+                                    width: [100, 130, 90, 120, 100, 125, 95][index % 7]
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+
+                            // Skeleton Button Pill (Exact match with real actionBtn)
+                            Rectangle {
+                                Layout.preferredWidth: 86
+                                Layout.preferredHeight: 36
+                                radius: 100
+                                color: md.surfaceContainerHigh
+                                Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                            }
+                        }
+                    }
+                }
+
+                Item { Layout.fillHeight: true }
+            }
+
+            // ── Actual Game List View (Smoothly fades in when loaded) ──
             ListView {
                 id: gameListView
                 anchors.fill: parent
-                anchors.rightMargin: 6
-                spacing: 8
+                anchors.rightMargin: 4
+                spacing: 10
                 model: filteredGames
                 boundsBehavior: Flickable.StopAtBounds
-                cacheBuffer: 400
+                cacheBuffer: 600
                 reuseItems: true
+                visible: opacity > 0.0
+                opacity: isRefreshingOrLoading ? 0.0 : 1.0
+
+                Behavior on opacity {
+                    NumberAnimation { duration: 300; easing.type: Easing.OutCubic }
+                }
 
                 ScrollBar.vertical: ScrollBar {
-                    id: mainScrollBar
+                    id: m3ScrollBar
                     policy: ScrollBar.AsNeeded
                     anchors.right: parent.right
-                    anchors.rightMargin: -5
+                    anchors.rightMargin: -4
                     contentItem: Rectangle {
-                        implicitWidth: 4
-                        radius: 2
+                        implicitWidth: 5
+                        radius: 3
                         color: md.outlineVariant
-                        opacity: mainScrollBar.active ? 0.9 : 0.0
+                        opacity: m3ScrollBar.active ? 0.8 : 0.0
                         Behavior on opacity { NumberAnimation { duration: 200 } }
                     }
                 }
@@ -499,8 +959,8 @@ Window {
                 delegate: Rectangle {
                     id: gameTile
                     width: gameListView.width
-                    height: 64
-                    radius: 8
+                    height: 72
+                    radius: 18
 
                     property bool isThisActive: spoofer.isSpoofingProcess(modelData.primaryExecutable)
 
@@ -517,120 +977,215 @@ Window {
                         return md.surfaceContainer
                     }
                     border.color: {
-                        if (gameTile.isThisActive) return md.borderTertiary
+                        if (gameTile.isThisActive) return md.tertiary
                         if (tileMouseArea.containsMouse) return md.primary
-                        return md.outlineVariant
+                        return md.outlineSubtle
                     }
-                    border.width: gameTile.isThisActive ? 2 : 1.5
+                    border.width: gameTile.isThisActive ? 1.8 : 1
 
-                    Behavior on color { ColorAnimation { duration: 150 } }
-                    Behavior on border.color { ColorAnimation { duration: 150 } }
+                    Behavior on color { ColorAnimation { duration: 160 } }
+                    Behavior on border.color { ColorAnimation { duration: 160 } }
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 12
-                        anchors.topMargin: 8
-                        anchors.bottomMargin: 8
-                        spacing: 12
+                        anchors.leftMargin: 16
+                        anchors.rightMargin: 14
+                        anchors.topMargin: 10
+                        anchors.bottomMargin: 10
+                        spacing: 14
 
-                        // Game icon block
+                        // Game Squircle Avatar
                         Rectangle {
-                            width: 38
-                            height: 38
-                            radius: 6
-                            color: gameTile.isThisActive ? md.tertiary : md.primaryContainer
-                            border.color: gameTile.isThisActive ? md.tertiaryFg : md.primary
-                            border.width: 1.5
+                            width: 44
+                            height: 44
+                            radius: 14
+                            color: gameTile.isThisActive ? md.tertiary : md.surfaceContainerHigh
+                            border.color: gameTile.isThisActive ? md.tertiary : md.outlineVariant
+                            border.width: 1
                             Layout.alignment: Qt.AlignVCenter
 
                             Text {
                                 anchors.centerIn: parent
+                                anchors.verticalCenterOffset: 1
                                 text: modelData.name ? modelData.name.charAt(0).toUpperCase() : "?"
-                                color: gameTile.isThisActive ? md.tertiaryFg : md.primaryContainerFg
-                                font.family: "Inter"
-                                font.pixelSize: 16
+                                color: gameTile.isThisActive ? md.tertiaryFg : md.primary
+                                font.family: md.fontFamily
+                                font.pixelSize: 18
                                 font.weight: Font.Bold
+                                verticalAlignment: Text.AlignVCenter
                             }
                         }
 
-                        // Game info
+                        // Game Details Column
                         ColumnLayout {
-                            spacing: 2
+                            spacing: 4
                             Layout.fillWidth: true
                             Layout.alignment: Qt.AlignVCenter
 
-                            Text {
-                                text: modelData.name
-                                color: md.surfaceFg
-                                font.family: "Inter"
-                                font.pixelSize: 14
-                                font.weight: Font.DemiBold
-                                elide: Text.ElideRight
+                            RowLayout {
+                                spacing: 8
                                 Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
+
+                                Text {
+                                    text: modelData.name
+                                    color: md.surfaceFg
+                                    font.family: md.fontFamily
+                                    font.pixelSize: 14
+                                    font.weight: Font.Bold
+                                    elide: Text.ElideRight
+                                    verticalAlignment: Text.AlignVCenter
+                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.maximumWidth: gameTile.width - (gameTile.isThisActive ? 220 : 130)
+                                }
+
+                                // Active Tag Pill (placed directly beside title, vertically centered)
+                                Rectangle {
+                                    visible: gameTile.isThisActive
+                                    color: md.tertiary
+                                    radius: 100
+                                    implicitWidth: activePillText.implicitWidth + 14
+                                    implicitHeight: 20
+                                    Layout.alignment: Qt.AlignVCenter
+
+                                    Text {
+                                        id: activePillText
+                                        anchors.centerIn: parent
+                                        anchors.verticalCenterOffset: 1 // Optical alignment
+                                        text: "SPOOFING"
+                                        color: md.tertiaryFg
+                                        font.family: md.fontFamily
+                                        font.pixelSize: 9
+                                        font.weight: Font.Bold
+                                        font.letterSpacing: 0.5
+                                        verticalAlignment: Text.AlignVCenter
+                                    }
+                                }
+
+                                Item { Layout.fillWidth: true }
                             }
-                            Text {
-                                text: modelData.primaryExecutable
-                                color: gameTile.isThisActive ? md.tertiary : md.outline
-                                font.family: "Inter"
-                                font.pixelSize: 12
-                                font.weight: Font.Normal
-                                elide: Text.ElideRight
+
+                            RowLayout {
+                                spacing: 6
                                 Layout.fillWidth: true
+                                Layout.alignment: Qt.AlignVCenter
+
+                                MaterialIcon {
+                                    name: "terminal"
+                                    size: 13
+                                    iconColor: gameTile.isThisActive ? md.tertiary : md.surfaceSubtleFg
+                                    Layout.alignment: Qt.AlignVCenter
+                                }
+
+                                Text {
+                                    text: modelData.primaryExecutable
+                                    color: gameTile.isThisActive ? md.tertiaryContainerFg : md.surfaceSubtleFg
+                                    font.family: md.fontFamily
+                                    font.pixelSize: 12
+                                    font.weight: Font.Medium
+                                    elide: Text.ElideRight
+                                    verticalAlignment: Text.AlignVCenter
+                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.fillWidth: true
+                                }
                             }
                         }
 
-                        // Spoof / Stop Toggle Button
-                        Button {
-                            id: spoofBtn
-                            text: gameTile.isThisActive ? "Stop" : "Spoof"
-                            font.family: "Inter"
-                            font.weight: Font.Bold
-                            font.pixelSize: 12
-                            Layout.preferredWidth: 76
-                            Layout.preferredHeight: 34
-                            Layout.alignment: Qt.AlignVCenter
-
-                            background: Rectangle {
-                                radius: 8
-                                color: {
-                                    if (gameTile.isThisActive) {
-                                        return spoofBtn.hovered ? "#5C1B1E" : md.errorContainer
-                                    }
-                                    if (spoofBtn.hovered) return md.primaryContainer
-                                    return md.surfaceContainerHigh
-                                }
-                                border.color: {
-                                    if (gameTile.isThisActive) return md.borderError
-                                    if (spoofBtn.hovered) return md.primary
-                                    return md.outlineVariant
-                                }
-                                border.width: 1.5
-
-                                Behavior on color { ColorAnimation { duration: 150 } }
-                                Behavior on border.color { ColorAnimation { duration: 150 } }
-                            }
-
-                            contentItem: Text {
-                                text: spoofBtn.text
-                                color: {
-                                    if (gameTile.isThisActive) return md.error
-                                    if (spoofBtn.hovered) return md.primary
-                                    return md.surfaceFg
-                                }
-                                horizontalAlignment: Text.AlignHCenter
-                                verticalAlignment: Text.AlignVCenter
-                                font: spoofBtn.font
-                            }
-
-                            onClicked: {
+                        // Pill Action Button (Spoof / Stop) with strict horizontal, vertical, and optical centering
+                        Rectangle {
+                            id: actionBtn
+                            Layout.preferredWidth: 86
+                            Layout.preferredHeight: 36
+                            Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                            radius: 100
+                            color: {
                                 if (gameTile.isThisActive) {
-                                    spoofer.stopSpoofingProcess(modelData.primaryExecutable)
-                                } else {
-                                    spoofer.startSpoofing(modelData.primaryExecutable,
-                                                          modelData.name,
-                                                          modelData.steamAppId ?? "",
-                                                          modelData.id ?? "")
+                                    return actionMouse.containsMouse ? "#69171C" : md.errorContainer
+                                }
+                                if (actionMouse.containsMouse) return md.primary
+                                return md.primaryContainer
+                            }
+                            border.color: {
+                                if (gameTile.isThisActive) return md.error
+                                return md.primary
+                            }
+                            border.width: 1
+
+                            scale: actionMouse.containsPress ? 0.94 : (actionMouse.containsMouse ? 1.03 : 1.0)
+                            Behavior on scale { NumberAnimation { duration: 100 } }
+                            Behavior on color { ColorAnimation { duration: 150 } }
+
+                            Row {
+                                anchors.centerIn: parent
+                                spacing: 6
+
+                                // Vector Icon Container
+                                Item {
+                                    width: 10
+                                    height: 10
+                                    anchors.verticalCenter: parent.verticalCenter
+
+                                    // Solid rounded Stop square
+                                    Rectangle {
+                                        visible: gameTile.isThisActive
+                                        anchors.centerIn: parent
+                                        width: 9.5
+                                        height: 9.5
+                                        radius: 2
+                                        color: md.errorContainerFg
+                                    }
+
+                                    // Crisp vector Play triangle
+                                    Shape {
+                                        visible: !gameTile.isThisActive
+                                        anchors.centerIn: parent
+                                        width: 10
+                                        height: 10
+                                        asynchronous: false
+                                        layer.enabled: true
+                                        layer.samples: 4
+
+                                        ShapePath {
+                                            strokeColor: "transparent"
+                                            strokeWidth: 0
+                                            fillColor: actionMouse.containsMouse ? md.primaryFg : md.primaryContainerFg
+                                            startX: 1.0; startY: 0.5
+                                            PathLine { x: 9.5; y: 5.0 }
+                                            PathLine { x: 1.0; y: 9.5 }
+                                            PathLine { x: 1.0; y: 0.5 }
+                                        }
+                                    }
+                                }
+
+                                Text {
+                                    text: gameTile.isThisActive ? "Stop" : "Spoof"
+                                    color: {
+                                        if (gameTile.isThisActive) return md.errorContainerFg
+                                        if (actionMouse.containsMouse) return md.primaryFg
+                                        return md.primaryContainerFg
+                                    }
+                                    font.family: md.fontFamily
+                                    font.pixelSize: 12
+                                    font.weight: Font.Bold
+                                    verticalAlignment: Text.AlignVCenter
+                                    anchors.verticalCenter: parent.verticalCenter
+                                }
+                            }
+
+                            MouseArea {
+                                id: actionMouse
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    if (gameTile.isThisActive) {
+                                        spoofer.stopSpoofingProcess(modelData.primaryExecutable)
+                                    } else {
+                                        spoofer.startSpoofing(modelData.primaryExecutable,
+                                                              modelData.name,
+                                                              modelData.steamAppId ?? "",
+                                                              modelData.id ?? "")
+                                    }
                                 }
                             }
                         }
@@ -645,62 +1200,33 @@ Window {
                 }
             }
 
-            // ── Loading state ──
+            // Empty State (When not loading and 0 results)
             ColumnLayout {
                 anchors.centerIn: parent
-                spacing: 14
-                visible: discordApi.isLoading
+                spacing: 10
+                visible: !isRefreshingOrLoading && gameListView.count === 0
 
                 Rectangle {
-                    width: 32
-                    height: 32
-                    radius: 16
-                    color: "transparent"
-                    border.color: md.primary
-                    border.width: 3
+                    width: 56
+                    height: 56
+                    radius: 28
+                    color: md.surfaceContainerHigh
                     Layout.alignment: Qt.AlignHCenter
 
-                    Rectangle {
-                        width: 16
-                        height: 16
-                        color: md.background
-                        anchors.right: parent.right
-                        anchors.top: parent.top
-                    }
-
-                    RotationAnimator on rotation {
-                        from: 0; to: 360
-                        duration: 900
-                        loops: Animation.Infinite
-                        running: discordApi.isLoading
+                    MaterialIcon {
+                        anchors.centerIn: parent
+                        name: "sports_esports"
+                        size: 30
+                        iconColor: md.surfaceSubtleFg
                     }
                 }
 
                 Text {
-                    text: "Fetching Discord game database..."
+                    text: searchInput.text ? "No games found matching '" + searchInput.text + "'" : "No games available"
                     color: md.surfaceVariantFg
-                    font.family: "Inter"
-                    font.pixelSize: 13
-                    Layout.alignment: Qt.AlignHCenter
-                }
-            }
-
-            // ── Empty state ──
-            ColumnLayout {
-                anchors.centerIn: parent
-                spacing: 8
-                visible: !discordApi.isLoading && gameListView.count === 0
-
-                Text {
-                    text: "🎮"
-                    font.pixelSize: 32
-                    Layout.alignment: Qt.AlignHCenter
-                }
-                Text {
-                    text: searchInput.text ? "No games match '" + searchInput.text + "'" : "No games available"
-                    color: md.surfaceVariantFg
-                    font.family: "Inter"
+                    font.family: md.fontFamily
                     font.pixelSize: 14
+                    font.weight: Font.Medium
                     Layout.alignment: Qt.AlignHCenter
                 }
             }
@@ -708,14 +1234,19 @@ Window {
     }
 
     // ════════════════════════════════════════════════════════════════
-    //  Active Spoofed Games Modal / Dialog
+    //  Active Spoofed Games Modal (Material 3 Bottom Sheet Style)
     // ════════════════════════════════════════════════════════════════
     Rectangle {
         id: activeGamesModal
         anchors.fill: parent
-        color: "#B3000000"
+        color: "#99000000"
         visible: false
         z: 999
+        opacity: visible ? 1.0 : 0.0
+
+        Behavior on opacity {
+            NumberAnimation { duration: 180 }
+        }
 
         function open() {
             visible = true
@@ -725,13 +1256,11 @@ Window {
             visible = false
         }
 
-        // Close on backdrop click
         MouseArea {
             anchors.fill: parent
             onClicked: activeGamesModal.close()
         }
 
-        // Auto-close if no games are spoofing anymore
         Connections {
             target: spoofer
             function onSpoofedProcessesChanged() {
@@ -741,83 +1270,130 @@ Window {
             }
         }
 
-        // Dialog Content Box
+        // Bottom Sheet Container
         Rectangle {
             id: dialogBox
-            width: Math.min(parent.width - 40, 460)
+            width: Math.min(parent.width - 32, 430)
             height: Math.min(parent.height - 80, 480)
             anchors.centerIn: parent
-            radius: 12
+            radius: 24
             color: md.surfaceContainerHigh
             border.color: md.outlineVariant
-            border.width: 2
+            border.width: 1.5
+            clip: true
 
-            // Prevent clicks inside dialog from dismissing modal
             MouseArea {
                 anchors.fill: parent
-                onClicked: {}
+                onClicked: {} // Prevent dismiss on click inside
             }
 
             ColumnLayout {
                 anchors.fill: parent
-                anchors.margins: 18
+                anchors.leftMargin: 20
+                anchors.rightMargin: 20
+                anchors.topMargin: 16
+                anchors.bottomMargin: 18
                 spacing: 14
+
+                // Drag Handle
+                Rectangle {
+                    width: 36
+                    height: 4
+                    radius: 2
+                    color: md.outlineVariant
+                    Layout.alignment: Qt.AlignHCenter
+                }
 
                 // Dialog Header
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: 12
 
                     Rectangle {
-                        width: 10
-                        height: 10
-                        radius: 5
-                        color: md.tertiary
-                        Layout.alignment: Qt.AlignVCenter
-                    }
-
-                    Text {
-                        text: "Active Spoofed Games"
-                        color: md.surfaceFg
-                        font.family: "Inter"
-                        font.pixelSize: 17
-                        font.weight: Font.Bold
-                        Layout.fillWidth: true
-                    }
-
-                    // Count Badge
-                    Rectangle {
+                        width: 36
+                        height: 36
+                        radius: 12
                         color: md.tertiaryContainer
-                        border.color: md.borderTertiary
-                        border.width: 1.5
-                        radius: 6
-                        implicitWidth: 64
-                        implicitHeight: 24
+                        border.color: md.tertiary
+                        border.width: 1
+                        Layout.alignment: Qt.AlignVCenter
 
-                        Text {
+                        MaterialIcon {
                             anchors.centerIn: parent
-                            text: spoofer.spoofedCount + " Active"
-                            color: md.tertiary
-                            font.family: "Inter"
-                            font.pixelSize: 11
-                            font.weight: Font.Bold
+                            name: "bolt"
+                            size: 20
+                            iconColor: md.tertiary
                         }
                     }
 
-                    // Close icon button
-                    Rectangle {
-                        width: 28
-                        height: 28
-                        radius: 6
-                        color: closeDialogMouse.containsMouse ? md.surfaceContainerHighest : "transparent"
-                        border.color: closeDialogMouse.containsMouse ? md.outlineVariant : "transparent"
-                        border.width: 1
+                    ColumnLayout {
+                        spacing: 3
+                        Layout.fillWidth: true
+                        Layout.alignment: Qt.AlignVCenter
+
+                        RowLayout {
+                            spacing: 8
+                            Layout.fillWidth: true
+
+                            Text {
+                                text: "Active Games"
+                                color: md.surfaceFg
+                                font.family: md.fontFamily
+                                font.pixelSize: 17
+                                font.weight: Font.Bold
+                                verticalAlignment: Text.AlignVCenter
+                                elide: Text.ElideRight
+                            }
+
+                            // Count Badge placed directly beside title
+                            Rectangle {
+                                color: md.tertiaryContainer
+                                border.color: md.tertiary
+                                border.width: 1
+                                radius: 100
+                                implicitWidth: countBadgeText.implicitWidth + 12
+                                implicitHeight: 20
+                                Layout.alignment: Qt.AlignVCenter
+
+                                Text {
+                                    id: countBadgeText
+                                    anchors.centerIn: parent
+                                    anchors.verticalCenterOffset: 1
+                                    text: spoofer.spoofedCount + " Running"
+                                    color: md.tertiary
+                                    font.family: md.fontFamily
+                                    font.pixelSize: 10
+                                    font.weight: Font.Bold
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+
+                            Item { Layout.fillWidth: true }
+                        }
 
                         Text {
+                            text: "Discord recognizes these titles as currently playing"
+                            color: md.surfaceVariantFg
+                            font.family: md.fontFamily
+                            font.pixelSize: 11
+                            elide: Text.ElideRight
+                            Layout.fillWidth: true
+                        }
+                    }
+
+                    // Close Button
+                    Rectangle {
+                        width: 30
+                        height: 30
+                        radius: 15
+                        color: closeDialogMouse.containsMouse ? md.surfaceContainerHighest : "transparent"
+                        Layout.alignment: Qt.AlignVCenter
+
+                        MaterialIcon {
                             anchors.centerIn: parent
-                            text: "✕"
-                            font.pixelSize: 13
-                            color: md.surfaceFg
+                            name: "close"
+                            size: 16
+                            iconColor: md.surfaceFg
                         }
 
                         MouseArea {
@@ -830,26 +1406,17 @@ Window {
                     }
                 }
 
-                Text {
-                    text: "Discord currently detects these games as running via Orby:"
-                    color: md.surfaceVariantFg
-                    font.family: "Inter"
-                    font.pixelSize: 12
-                    Layout.fillWidth: true
-                }
-
                 // Divider
                 Rectangle {
                     Layout.fillWidth: true
                     height: 1
-                    color: md.outlineVariant
+                    color: md.outlineSubtle
                 }
 
-                // Active games scrollable list
-                Rectangle {
+                // Active List
+                Item {
                     Layout.fillWidth: true
                     Layout.fillHeight: true
-                    color: "transparent"
                     clip: true
 
                     ListView {
@@ -860,52 +1427,52 @@ Window {
                         boundsBehavior: Flickable.StopAtBounds
 
                         delegate: Rectangle {
-                            width: ListView.view.width
+                            width: activeListView.width
                             height: 56
-                            radius: 8
+                            radius: 14
                             color: md.surfaceContainer
                             border.color: md.outlineVariant
-                            border.width: 1.5
+                            border.width: 1
 
                             RowLayout {
                                 anchors.fill: parent
                                 anchors.leftMargin: 12
-                                anchors.rightMargin: 10
+                                anchors.rightMargin: 12
                                 spacing: 10
 
-                                // Initial Icon
                                 Rectangle {
-                                    width: 32
-                                    height: 32
-                                    radius: 6
-                                    color: md.primaryContainer
-                                    border.color: md.primary
-                                    border.width: 1.5
+                                    width: 34
+                                    height: 34
+                                    radius: 10
+                                    color: md.tertiaryContainer
+                                    border.color: md.tertiary
+                                    border.width: 1
                                     Layout.alignment: Qt.AlignVCenter
 
                                     Text {
                                         anchors.centerIn: parent
+                                        anchors.verticalCenterOffset: 1
                                         text: {
                                             let title = getGameTitle(modelData)
                                             return title ? title.charAt(0).toUpperCase() : "?"
                                         }
-                                        color: md.primaryContainerFg
-                                        font.family: "Inter"
+                                        color: md.tertiary
+                                        font.family: md.fontFamily
                                         font.pixelSize: 14
                                         font.weight: Font.Bold
+                                        verticalAlignment: Text.AlignVCenter
                                     }
                                 }
 
-                                // Game Name & Executable
                                 ColumnLayout {
-                                    spacing: 1
+                                    spacing: 2
                                     Layout.fillWidth: true
                                     Layout.alignment: Qt.AlignVCenter
 
                                     Text {
                                         text: getGameTitle(modelData)
                                         color: md.surfaceFg
-                                        font.family: "Inter"
+                                        font.family: md.fontFamily
                                         font.pixelSize: 13
                                         font.weight: Font.Bold
                                         elide: Text.ElideRight
@@ -914,40 +1481,56 @@ Window {
                                     Text {
                                         text: modelData
                                         color: md.tertiary
-                                        font.family: "Inter"
+                                        font.family: md.fontFamily
                                         font.pixelSize: 11
+                                        font.weight: Font.Medium
                                         elide: Text.ElideRight
                                         Layout.fillWidth: true
                                     }
                                 }
 
-                                // Stop button for single game
-                                Button {
+                                Rectangle {
                                     id: itemStopBtn
-                                    text: "Stop"
-                                    font.family: "Inter"
-                                    font.weight: Font.Bold
-                                    font.pixelSize: 12
-                                    Layout.preferredWidth: 68
-                                    Layout.preferredHeight: 30
-                                    Layout.alignment: Qt.AlignVCenter
+                                    Layout.preferredWidth: 74
+                                    Layout.preferredHeight: 32
+                                    Layout.alignment: Qt.AlignRight | Qt.AlignVCenter
+                                    radius: 100
+                                    color: itemStopMouse.containsPress ? "#4D1115" : (itemStopMouse.containsMouse ? "#63171B" : md.errorContainer)
+                                    border.color: md.error
+                                    border.width: 1
 
-                                    background: Rectangle {
-                                        radius: 6
-                                        color: itemStopBtn.hovered ? "#5C1B1E" : md.errorContainer
-                                        border.color: md.borderError
-                                        border.width: 1.5
-                                    }
-                                    contentItem: Text {
-                                        text: itemStopBtn.text
-                                        color: md.error
-                                        horizontalAlignment: Text.AlignHCenter
-                                        verticalAlignment: Text.AlignVCenter
-                                        font: itemStopBtn.font
+                                    scale: itemStopMouse.containsPress ? 0.94 : (itemStopMouse.containsMouse ? 1.03 : 1.0)
+                                    Behavior on scale { NumberAnimation { duration: 100 } }
+                                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                                    Row {
+                                        anchors.centerIn: parent
+                                        spacing: 5
+
+                                        Rectangle {
+                                            width: 9
+                                            height: 9
+                                            radius: 2
+                                            color: md.errorContainerFg
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
+                                        Text {
+                                            text: "Stop"
+                                            color: md.errorContainerFg
+                                            font.family: md.fontFamily
+                                            font.weight: Font.Bold
+                                            font.pixelSize: 11
+                                            verticalAlignment: Text.AlignVCenter
+                                            anchors.verticalCenter: parent.verticalCenter
+                                        }
                                     }
 
-                                    onClicked: {
-                                        spoofer.stopSpoofingProcess(modelData)
+                                    MouseArea {
+                                        id: itemStopMouse
+                                        anchors.fill: parent
+                                        hoverEnabled: true
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: spoofer.stopSpoofingProcess(modelData)
                                     }
                                 }
                             }
@@ -959,95 +1542,96 @@ Window {
                 Rectangle {
                     Layout.fillWidth: true
                     height: 1
-                    color: md.outlineVariant
+                    color: md.outlineSubtle
                 }
 
-                // Dialog Action Buttons
+                // Action Bar
                 RowLayout {
                     Layout.fillWidth: true
-                    spacing: 10
+                    spacing: 12
 
-                    Button {
+                    Rectangle {
                         id: dialogStopAllBtn
-                        text: "Stop All"
-                        font.family: "Inter"
-                        font.weight: Font.Bold
-                        font.pixelSize: 13
                         Layout.preferredHeight: 38
-                        Layout.preferredWidth: 100
+                        Layout.preferredWidth: 98
+                        Layout.alignment: Qt.AlignVCenter
+                        radius: 100
+                        color: dialogStopAllMouse.containsPress ? "#4D1115" : (dialogStopAllMouse.containsMouse ? "#69171C" : md.errorContainer)
+                        border.color: md.error
+                        border.width: 1
 
-                        background: Rectangle {
-                            radius: 8
-                            color: dialogStopAllBtn.hovered ? "#5C1B1E" : md.errorContainer
-                            border.color: md.borderError
-                            border.width: 1.5
-                        }
-                        contentItem: Text {
-                            text: dialogStopAllBtn.text
-                            color: md.error
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            font: dialogStopAllBtn.font
-                        }
+                        scale: dialogStopAllMouse.containsPress ? 0.94 : (dialogStopAllMouse.containsMouse ? 1.03 : 1.0)
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+                        Behavior on color { ColorAnimation { duration: 150 } }
 
-                        onClicked: {
-                            spoofer.stopAllSpoofing()
-                            activeGamesModal.close()
-                        }
-                    }
+                        Row {
+                            anchors.centerIn: parent
+                            spacing: 6
 
-                    Button {
-                        id: dialogQuitBtn
-                        text: "Quit Orby"
-                        font.family: "Inter"
-                        font.weight: Font.Medium
-                        font.pixelSize: 13
-                        Layout.preferredHeight: 38
-                        Layout.preferredWidth: 95
-
-                        background: Rectangle {
-                            radius: 8
-                            color: dialogQuitBtn.hovered ? md.surfaceContainerHighest : "transparent"
-                            border.color: md.outlineVariant
-                            border.width: 1
-                        }
-                        contentItem: Text {
-                            text: dialogQuitBtn.text
-                            color: md.surfaceVariantFg
-                            horizontalAlignment: Text.AlignHCenter
-                            verticalAlignment: Text.AlignVCenter
-                            font: dialogQuitBtn.font
+                            Rectangle {
+                                width: 10
+                                height: 10
+                                radius: 2
+                                color: md.errorContainerFg
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
+                            Text {
+                                text: "Stop All"
+                                color: md.errorContainerFg
+                                font.family: md.fontFamily
+                                font.weight: Font.Bold
+                                font.pixelSize: 12
+                                verticalAlignment: Text.AlignVCenter
+                                anchors.verticalCenter: parent.verticalCenter
+                            }
                         }
 
-                        onClicked: Qt.quit()
+                        MouseArea {
+                            id: dialogStopAllMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: {
+                                spoofer.stopAllSpoofing()
+                                activeGamesModal.close()
+                            }
+                        }
                     }
 
                     Item { Layout.fillWidth: true }
 
-                    Button {
-                        id: dialogCloseBtn
-                        text: "Done"
-                        font.family: "Inter"
-                        font.weight: Font.Bold
-                        font.pixelSize: 13
+                    Rectangle {
+                        id: dialogDoneBtn
                         Layout.preferredHeight: 38
-                        Layout.preferredWidth: 90
+                        Layout.preferredWidth: 88
+                        Layout.alignment: Qt.AlignVCenter
+                        radius: 100
+                        color: dialogDoneMouse.containsPress ? md.secondary : (dialogDoneMouse.containsMouse ? md.primary : md.primaryContainer)
+                        border.color: md.primary
+                        border.width: 1
 
-                        background: Rectangle {
-                            radius: 8
-                            color: dialogCloseBtn.hovered ? md.primaryContainer : md.surfaceContainerHighest
-                            border.color: dialogCloseBtn.hovered ? md.primary : md.outlineVariant
-                            border.width: 1.5
-                        }
-                        contentItem: Text {
-                            text: dialogCloseBtn.text
-                            color: dialogCloseBtn.hovered ? md.primary : md.surfaceFg
+                        scale: dialogDoneMouse.containsPress ? 0.94 : (dialogDoneMouse.containsMouse ? 1.03 : 1.0)
+                        Behavior on scale { NumberAnimation { duration: 100 } }
+                        Behavior on color { ColorAnimation { duration: 150 } }
+
+                        Text {
+                            anchors.centerIn: parent
+                            text: "Done"
+                            color: dialogDoneMouse.containsMouse ? md.primaryFg : md.primaryContainerFg
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
-                            font: dialogCloseBtn.font
+                            font.family: md.fontFamily
+                            font.weight: Font.Bold
+                            font.pixelSize: 13
                         }
 
-                        onClicked: activeGamesModal.close()
+                        MouseArea {
+                            id: dialogDoneMouse
+                            anchors.fill: parent
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: activeGamesModal.close()
+                        }
                     }
                 }
             }
