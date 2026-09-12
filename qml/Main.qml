@@ -19,7 +19,22 @@ Window {
         if (typeof spoofer !== "undefined" && spoofer.isSpoofing && typeof trayManager !== "undefined" && trayManager.closeToTray && trayManager.isSystemTrayAvailable) {
             close.accepted = false
             window.hide()
-            trayManager.notifyClosedToTray()
+
+            let summary = ""
+            if (spoofer.spoofedProcesses && spoofer.spoofedProcesses.length > 0) {
+                let titles = []
+                for (let i = 0; i < spoofer.spoofedProcesses.length; i++) {
+                    titles.push(getGameTitle(spoofer.spoofedProcesses[i]))
+                }
+                if (titles.length === 1) {
+                    summary = titles[0]
+                } else if (titles.length === 2) {
+                    summary = titles[0] + " & " + titles[1]
+                } else {
+                    summary = titles[0] + ", " + titles[1] + " (+" + (titles.length - 2) + " more)"
+                }
+            }
+            trayManager.notifyClosedToTray(summary)
         } else {
             close.accepted = true
             if (typeof spoofer !== "undefined") {
@@ -164,6 +179,19 @@ Window {
     ProcessSpoofer {
         id: spoofer
         onErrorOccurred: (msg) => console.warn("[Spoofer]", msg)
+        onSpoofedProcessesChanged: {
+            if (typeof trayManager !== "undefined") {
+                if (spoofer.isSpoofing && spoofer.spoofedProcesses.length > 0) {
+                    let titles = []
+                    for (let i = 0; i < spoofer.spoofedProcesses.length; i++) {
+                        titles.push(getGameTitle(spoofer.spoofedProcesses[i]))
+                    }
+                    trayManager.setTrayToolTip("Orby — Spoofing: " + titles.join(", "))
+                } else {
+                    trayManager.setTrayToolTip("Orby — Discord Game Presence Spoofer")
+                }
+            }
+        }
     }
 
     // Smooth refresh animation timer so users enjoy a sleek lazy-loading wave
@@ -396,10 +424,10 @@ Window {
             RowLayout {
                 anchors.fill: parent
                 anchors.leftMargin: 18
-                anchors.rightMargin: 16
+                anchors.rightMargin: 20
                 anchors.topMargin: 12
                 anchors.bottomMargin: 12
-                spacing: 14
+                spacing: 12
 
                 // Leading Status Icon with Radar / Glow Effect
                 Item {
@@ -445,6 +473,7 @@ Window {
                 ColumnLayout {
                     spacing: 2
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                     Layout.alignment: Qt.AlignVCenter
 
                     RowLayout {
@@ -516,22 +545,24 @@ Window {
                         elide: Text.ElideRight
                         verticalAlignment: Text.AlignVCenter
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                     }
                 }
 
-                // Stop All Button (Pill Action - Strictly Centered)
+                // Stop All Button (Pill Action - Strictly Centered with Corner Clearance)
                 Rectangle {
                     id: stopAllBtn
                     visible: spoofer.isSpoofing
-                    Layout.preferredWidth: 105
-                    Layout.preferredHeight: 38
-                    Layout.alignment: Qt.AlignVCenter
+                    Layout.preferredWidth: 92
+                    Layout.preferredHeight: 34
+                    Layout.alignment: Qt.AlignVCenter | Qt.AlignRight
+                    Layout.rightMargin: 6
                     radius: 100
                     color: stopAllMouse.containsPress ? "#4D1115" : (stopAllMouse.containsMouse ? "#63171B" : md.errorContainer)
                     border.color: stopAllMouse.containsMouse ? md.error : md.errorContainer
                     border.width: 1
 
-                    scale: stopAllMouse.containsPress ? 0.94 : (stopAllMouse.containsMouse ? 1.03 : 1.0)
+                    scale: stopAllMouse.containsPress ? 0.94 : (stopAllMouse.containsMouse ? 1.02 : 1.0)
                     Behavior on scale { NumberAnimation { duration: 100 } }
                     Behavior on color { ColorAnimation { duration: 150 } }
 
