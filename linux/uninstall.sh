@@ -144,8 +144,8 @@ for p in "${PREFIXES[@]}"; do
     fi
 
     if [[ -f "$ICON_SVG" ]]; then
-        if rm -f "$ICON_SVG" 2>/dev/null; then
-            echo -e " ${GREEN}✓${NC} Removed SVG icon ($ICON_SVG)"
+        if rm -f "$ICON_SVG" "$p/share/icons/hicolor/scalable/apps/orby-tray.svg" "$p/share/icons/hicolor/scalable/apps/orby-tray-dark.svg" 2>/dev/null; then
+            echo -e " ${GREEN}✓${NC} Removed SVG icons"
             REMOVED_FILES=$((REMOVED_FILES + 1))
             ICON_DIRS_TO_UPDATE+=("$p/share/icons/hicolor")
         else
