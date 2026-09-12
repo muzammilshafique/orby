@@ -22,8 +22,9 @@ public:
 
     Q_INVOKABLE void showTrayIcon();
     Q_INVOKABLE void hideTrayIcon();
-    Q_INVOKABLE void notifyClosedToTray();
+    Q_INVOKABLE void notifyClosedToTray(const QString &activeGamesSummary = QString());
     Q_INVOKABLE void showMessage(const QString &title, const QString &message, int durationMs = 3000);
+    Q_INVOKABLE void setTrayToolTip(const QString &tooltip);
 
 signals:
     void showWindowRequested();

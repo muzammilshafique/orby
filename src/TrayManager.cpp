@@ -5,13 +5,26 @@
 #include <QAction>
 #include <QFont>
 #include <QDebug>
+#include <QDir>
+#include <QFile>
+#include <QStandardPaths>
 
 TrayManager::TrayManager(QObject *parent)
     : QObject(parent)
 {
+#ifdef Q_OS_LINUX
+    // Ensure the icon is present in standard user icon path for notification daemons
+    QString iconDir = QStandardPaths::writableLocation(QStandardPaths::GenericDataLocation) + QStringLiteral("/icons/hicolor/256x256/apps");
+    QDir().mkpath(iconDir);
+    QString userIconPath = iconDir + QStringLiteral("/orby.png");
+    if (!QFile::exists(userIconPath)) {
+        QFile::copy(QStringLiteral(":/icons/orby.png"), userIconPath);
+    }
+#endif
+
     if (QSystemTrayIcon::isSystemTrayAvailable()) {
-        m_trayIcon = new QSystemTrayIcon(QIcon(":/icons/orby.png"), this);
-        m_trayIcon->setToolTip(QStringLiteral("Orby - Discord Game Presence Spoofer"));
+        m_trayIcon = new QSystemTrayIcon(QIcon(QStringLiteral(":/icons/orby.png")), this);
+        m_trayIcon->setToolTip(QStringLiteral("Orby — Discord Game Presence Spoofer"));
 
         setupMenu();
 
@@ -98,21 +111,40 @@ void TrayManager::onActivated(QSystemTrayIcon::ActivationReason reason)
     }
 }
 
-void TrayManager::notifyClosedToTray()
+void TrayManager::notifyClosedToTray(const QString &activeGamesSummary)
 {
     if (m_trayIcon && m_trayIcon->isVisible()) {
-        m_trayIcon->showMessage(
-            QStringLiteral("Orby"),
-            QStringLiteral("Orby is running in the system tray. Background game spoofing will continue.\nRight-click this icon to open or quit."),
-            QSystemTrayIcon::Information,
-            3500
-        );
+        QString title = QStringLiteral("Orby — Spoofing Active");
+        QString message;
+        if (!activeGamesSummary.trimmed().isEmpty()) {
+            message = QStringLiteral("Currently spoofing: %1\nRunning in system tray. Click icon to open.").arg(activeGamesSummary);
+        } else {
+            message = QStringLiteral("Presence spoofing is active in background.\nClick tray icon to reopen Orby.");
+        }
+
+        const QIcon icon = (m_trayIcon && !m_trayIcon->icon().isNull()) 
+            ? m_trayIcon->icon() 
+            : QIcon(QStringLiteral(":/icons/orby.png"));
+
+        m_trayIcon->showMessage(title, message, icon, 4000);
     }
 }
 
 void TrayManager::showMessage(const QString &title, const QString &message, int durationMs)
 {
     if (m_trayIcon && m_trayIcon->isVisible()) {
-        m_trayIcon->showMessage(title, message, QSystemTrayIcon::Information, durationMs);
+        const QIcon icon = (m_trayIcon && !m_trayIcon->icon().isNull()) 
+            ? m_trayIcon->icon() 
+            : QIcon(QStringLiteral(":/icons/orby.png"));
+        m_trayIcon->showMessage(title, message, icon, durationMs);
+    }
+}
+
+void TrayManager::setTrayToolTip(const QString &tooltip)
+{
+    if (m_trayIcon) {
+        m_trayIcon->setToolTip(tooltip.isEmpty() 
+            ? QStringLiteral("Orby — Discord Game Presence Spoofer") 
+            : tooltip);
     }
 }
