@@ -8,6 +8,7 @@
 #include <QQmlApplicationEngine>
 #include <QQmlContext>
 #include <QQuickStyle>
+#include <QQuickWindow>
 
 int main(int argc, char *argv[]) {
   QApplication app(argc, argv);
@@ -23,6 +24,11 @@ int main(int argc, char *argv[]) {
   QFontDatabase::addApplicationFont(":/fonts/MaterialSymbolsRounded.ttf");
 
   QFont defaultFont("Google Sans Flex", 10);
+#ifdef Q_OS_WIN
+  defaultFont.setHintingPreference(QFont::PreferNoHinting);
+  defaultFont.setStyleStrategy(QFont::PreferAntialias);
+  QQuickWindow::setTextRenderType(QQuickWindow::NativeTextRendering);
+#endif
   app.setFont(defaultFont);
 
   // Keep application running in tray when the window is closed

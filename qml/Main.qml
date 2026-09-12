@@ -1152,38 +1152,49 @@ Window {
 
                                 // Vector Icon Container
                                 Item {
-                                    width: 10
-                                    height: 10
+                                    width: 14
+                                    height: 14
                                     anchors.verticalCenter: parent.verticalCenter
 
                                     // Solid rounded Stop square
                                     Rectangle {
                                         visible: gameTile.isThisActive
                                         anchors.centerIn: parent
-                                        width: 9.5
-                                        height: 9.5
+                                        width: 10
+                                        height: 10
                                         radius: 2
                                         color: md.errorContainerFg
                                     }
 
-                                    // Crisp vector Play triangle
-                                    Shape {
+                                    // Crisp vector Play triangle (prominent, filled, and rounded)
+                                    Canvas {
                                         visible: !gameTile.isThisActive
                                         anchors.centerIn: parent
-                                        width: 10
-                                        height: 10
-                                        asynchronous: false
-                                        layer.enabled: true
-                                        layer.samples: 4
-
-                                        ShapePath {
-                                            strokeColor: "transparent"
-                                            strokeWidth: 0
-                                            fillColor: actionMouse.containsMouse ? md.primaryFg : md.primaryContainerFg
-                                            startX: 1.0; startY: 0.5
-                                            PathLine { x: 9.5; y: 5.0 }
-                                            PathLine { x: 1.0; y: 9.5 }
-                                            PathLine { x: 1.0; y: 0.5 }
+                                        anchors.horizontalCenterOffset: 0.5
+                                        width: 14
+                                        height: 14
+                                        antialiasing: true
+                                        property color iconColor: actionMouse.containsMouse ? md.primaryFg : md.primaryContainerFg
+                                        onIconColorChanged: requestPaint()
+                                        onPaint: {
+                                            var ctx = getContext("2d");
+                                            ctx.reset();
+                                            
+                                            // Smooth rounded corners via lineJoin
+                                            ctx.lineJoin = "round";
+                                            ctx.lineWidth = 3; 
+                                            ctx.fillStyle = iconColor;
+                                            ctx.strokeStyle = iconColor;
+                                            
+                                            ctx.beginPath();
+                                            // Vertices for the triangle (inset by radius)
+                                            ctx.moveTo(3.0, 2.5);
+                                            ctx.lineTo(11.0, 7.0);
+                                            ctx.lineTo(3.0, 11.5);
+                                            ctx.closePath();
+                                            
+                                            ctx.fill();
+                                            ctx.stroke();
                                         }
                                     }
                                 }
