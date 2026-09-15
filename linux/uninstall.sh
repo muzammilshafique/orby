@@ -104,25 +104,20 @@ if [[ -n "$CUSTOM_PREFIX" ]]; then
     PREFIXES+=("$CUSTOM_PREFIX")
 else
     # Check user local, system local, and /usr
-    PREFIXES+=("$HOME/.local")
-    if [[ "$EUID" -eq 0 ]]; then
-        PREFIXES+=("/usr/local" "/usr")
-    else
-        # If user can write to /usr/local, or if files exist there, include it
-        [[ -d "/usr/local/share/applications" ]] && PREFIXES+=("/usr/local")
-    fi
+    PREFIXES+=("$HOME/.local" "/usr/local" "/usr")
 fi
 
 REMOVED_FILES=0
 APP_DIRS_TO_UPDATE=()
 ICON_DIRS_TO_UPDATE=()
 
-# 3. Remove installed binaries, desktop files, and icons
+# 3. Remove installed binaries, desktop files, icons, and licenses
 for p in "${PREFIXES[@]}"; do
     BIN_FILE="$p/bin/orby"
     DESKTOP_FILE="$p/share/applications/orby.desktop"
     ICON_SVG="$p/share/icons/hicolor/scalable/apps/orby.svg"
     ICON_PNG="$p/share/icons/hicolor/256x256/apps/orby.png"
+    LICENSE_DIR="$p/share/licenses/orby"
 
     if [[ -f "$BIN_FILE" ]]; then
         if rm -f "$BIN_FILE" 2>/dev/null; then
@@ -139,7 +134,7 @@ for p in "${PREFIXES[@]}"; do
             REMOVED_FILES=$((REMOVED_FILES + 1))
             APP_DIRS_TO_UPDATE+=("$p/share/applications")
         else
-            log_warn "Permission denied removing $DESKTOP_FILE."
+            log_warn "Permission denied removing $DESKTOP_FILE (may need sudo)."
         fi
     fi
 
@@ -149,7 +144,7 @@ for p in "${PREFIXES[@]}"; do
             REMOVED_FILES=$((REMOVED_FILES + 1))
             ICON_DIRS_TO_UPDATE+=("$p/share/icons/hicolor")
         else
-            log_warn "Permission denied removing $ICON_SVG."
+            log_warn "Permission denied removing SVG icons (may need sudo)."
         fi
     fi
 
@@ -162,8 +157,12 @@ for p in "${PREFIXES[@]}"; do
             rmdir "$p/share/icons/hicolor/256x256/apps" 2>/dev/null || true
             rmdir "$p/share/icons/hicolor/256x256" 2>/dev/null || true
         else
-            log_warn "Permission denied removing $ICON_PNG."
+            log_warn "Permission denied removing PNG icon (may need sudo)."
         fi
+    fi
+
+    if [[ -d "$LICENSE_DIR" ]]; then
+        rm -rf "$LICENSE_DIR" 2>/dev/null || true
     fi
 done
 
