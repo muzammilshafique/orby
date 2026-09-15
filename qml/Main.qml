@@ -1051,11 +1051,13 @@ Window {
                         ColumnLayout {
                             spacing: 4
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             Layout.alignment: Qt.AlignVCenter
 
                             RowLayout {
                                 spacing: 8
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 Layout.alignment: Qt.AlignVCenter
 
                                 Text {
@@ -1067,11 +1069,12 @@ Window {
                                     elide: Text.ElideRight
                                     verticalAlignment: Text.AlignVCenter
                                     Layout.alignment: Qt.AlignVCenter
-                                    Layout.maximumWidth: gameTile.width - (gameTile.isThisActive ? 220 : 130)
+                                    Layout.maximumWidth: Math.max(0, gameTile.width - 188 - (gameTile.isThisActive ? (activePill.implicitWidth + 8) : 0))
                                 }
 
                                 // Active Tag Pill (placed directly beside title, vertically centered)
                                 Rectangle {
+                                    id: activePill
                                     visible: gameTile.isThisActive
                                     color: md.tertiary
                                     radius: 100
@@ -1099,6 +1102,7 @@ Window {
                             RowLayout {
                                 spacing: 6
                                 Layout.fillWidth: true
+                                Layout.minimumWidth: 0
                                 Layout.alignment: Qt.AlignVCenter
 
                                 MaterialIcon {
@@ -1118,6 +1122,7 @@ Window {
                                     verticalAlignment: Text.AlignVCenter
                                     Layout.alignment: Qt.AlignVCenter
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
                                 }
                             }
                         }
@@ -1509,6 +1514,7 @@ Window {
                                 ColumnLayout {
                                     spacing: 2
                                     Layout.fillWidth: true
+                                    Layout.minimumWidth: 0
                                     Layout.alignment: Qt.AlignVCenter
 
                                     Text {
@@ -1519,6 +1525,7 @@ Window {
                                         font.weight: Font.Bold
                                         elide: Text.ElideRight
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                     }
                                     Text {
                                         text: modelData
@@ -1528,6 +1535,7 @@ Window {
                                         font.weight: Font.Medium
                                         elide: Text.ElideRight
                                         Layout.fillWidth: true
+                                        Layout.minimumWidth: 0
                                     }
                                 }
 
