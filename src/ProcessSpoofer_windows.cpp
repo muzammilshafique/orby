@@ -4,6 +4,7 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QCoreApplication>
+#include <QStandardPaths>
 #include <QDebug>
 #include <QTextStream>
 
@@ -52,7 +53,6 @@ bool ProcessSpoofer::isSpoofingProcess(const QString &processName) const
 static QString sanitizeFolderName(const QString &raw)
 {
     QString s = raw;
-    // Remove characters that are invalid in NTFS directory names
     for (QChar c : QStringLiteral("<>:\"/\\|?*"))
         s.remove(c);
     return s.trimmed();
@@ -67,7 +67,13 @@ static QString findDummySource()
         appDir + "/Release/dummy.exe",
         appDir + "/Debug/dummy.exe",
         appDir + "/../dummy.exe",
-        appDir + "/../Release/dummy.exe"
+        appDir + "/../Release/dummy.exe",
+        appDir + "/../build/Release/dummy.exe",
+        appDir + "/../build/dummy.exe",
+        QDir::currentPath() + "/dummy.exe",
+        QDir::currentPath() + "/Release/dummy.exe",
+        QDir::currentPath() + "/build/Release/dummy.exe",
+        QDir::currentPath() + "/build/dummy.exe"
     };
 
     for (const QString &path : candidates) {
@@ -79,14 +85,14 @@ static QString findDummySource()
 
 /// Try to delete a file with retry — Windows can briefly lock an exe after
 /// process termination or during an antivirus scan.
-static bool robustDelete(const QString &path, int attempts = 5, int delayMs = 100)
+static bool robustDelete(const QString &path, int attempts = 8, int delayMs = 100)
 {
     std::wstring wpath = path.toStdWString();
     for (int i = 0; i < attempts; ++i) {
         if (DeleteFileW(wpath.c_str()))
             return true;
         if (!QFile::exists(path))
-            return true;            // already gone
+            return true;
         Sleep(static_cast<DWORD>(delayMs));
     }
     return !QFile::exists(path);
@@ -114,14 +120,11 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
     // ── Locate bundled dummy.exe ──
     QString dummySrc = findDummySource();
     if (dummySrc.isEmpty()) {
-        emit errorOccurred("Could not find 'dummy.exe' in application directory or build output.");
+        emit errorOccurred("Could not locate 'dummy.exe'. Please ensure dummy.exe is present in the application directory.");
         return;
     }
 
     // ── Parse target executable name and relative directory ──
-    // Discord detects games by matching relative paths (e.g. "_retail_/wow-64.exe",
-    // "left 4 dead 2/left4dead2.exe", "path of exile/pathofexile_x64steam.exe").
-    // We preserve the relative directory hierarchy and isolate games by gameId.
     QString normPath = processName;
     normPath.replace('\\', '/');
     while (normPath.startsWith('/'))
@@ -136,8 +139,8 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
     if (relativeSubDir == ".")
         relativeSubDir.clear();
 
-    QString appDir = QCoreApplication::applicationDirPath();
-    QString gamesRoot = appDir + "/games";
+    // Use guaranteed-writable temp location instead of applicationDirPath (which may be read-only in Program Files)
+    QString gamesRoot = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/Orby/games";
 
     // Isolate by gameId (Discord Application ID), or fallback to sanitized game name
     QString gameFolder;
@@ -153,15 +156,13 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
     QString exeDir = relativeSubDir.isEmpty() ? gameFolder : (gameFolder + "/" + relativeSubDir);
 
     if (!QDir().mkpath(exeDir)) {
-        emit errorOccurred("Failed to create directory: " + exeDir);
+        emit errorOccurred("Failed to create temporary directory: " + exeDir);
         return;
     }
 
     QString tempBinaryPath = exeDir + "/" + targetExe;
 
-    // ── Reusable binary check ──
-    // Avoid re-copying or deleting if the dummy binary already exists with matching size.
-    // This avoids Windows Defender / antivirus file locking errors on re-launch.
+    // ── Copy or refresh dummy binary ──
     bool needCopy = true;
     if (QFile::exists(tempBinaryPath)) {
         QFileInfo srcInfo(dummySrc);
@@ -179,8 +180,8 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
             std::wstring wSrc = QDir::toNativeSeparators(dummySrc).toStdWString();
             std::wstring wDst = QDir::toNativeSeparators(tempBinaryPath).toStdWString();
             if (!CopyFileW(wSrc.c_str(), wDst.c_str(), FALSE)) {
-                emit errorOccurred("Failed to copy dummy executable to " + tempBinaryPath
-                                   + " (error " + QString::number(GetLastError()) + ")");
+                DWORD err = GetLastError();
+                emit errorOccurred(QString("Failed to prepare game executable (CopyFile error %1).").arg(err));
                 return;
             }
         }
@@ -195,15 +196,15 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
     std::wstring wDir = QDir::toNativeSeparators(exeDir).toStdWString();
     std::wstring wGameName = (gameName.isEmpty() ? QFileInfo(targetExe).completeBaseName() : gameName).toStdWString();
 
-    // Pass --title "<Game Name>" so dummy.exe displays the game name in its window & tray
+    // Command line: "C:\path\to\game.exe" --title "Game Name"
     std::wstring wCmd = L"\"" + wExe + L"\" --title \"" + wGameName + L"\"";
 
     std::vector<wchar_t> cmdBuf(wCmd.begin(), wCmd.end());
     cmdBuf.push_back(L'\0');
 
     BOOL ok = CreateProcessW(
-        wExe.c_str(),       // lpApplicationName
-        cmdBuf.data(),      // lpCommandLine  (mutable)
+        nullptr,            // lpApplicationName NULL: lpCommandLine contains the quoted binary and parameters
+        cmdBuf.data(),      // lpCommandLine
         nullptr, nullptr,   // security attrs
         FALSE,              // bInheritHandles
         0,                  // dwCreationFlags
@@ -215,7 +216,20 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
     if (!ok) {
         DWORD err = GetLastError();
         emit errorOccurred(
-            QString("Failed to start spoofed process (error %1).").arg(err));
+            QString("Failed to start spoofed process '%1' (error %2).").arg(targetExe).arg(err));
+        return;
+    }
+
+    // Check if process immediately crashed or exited
+    DWORD waitRes = WaitForSingleObject(pi.hProcess, 60);
+    if (waitRes == WAIT_OBJECT_0) {
+        DWORD exitCode = 0;
+        GetExitCodeProcess(pi.hProcess, &exitCode);
+        CloseHandle(pi.hProcess);
+        CloseHandle(pi.hThread);
+        emit errorOccurred(QString("Process '%1' exited immediately (exit code 0x%2).")
+                               .arg(targetExe)
+                               .arg(QString::number(exitCode, 16).toUpper()));
         return;
     }
 
@@ -230,7 +244,7 @@ void ProcessSpoofer::startSpoofing(const QString &processName,
     entry.gameFolder = gameFolder;
     m_spoofedProcesses.insert(processName, entry);
 
-    // Keep legacy fields in sync (point to last started)
+    // Keep legacy fields in sync
     m_processHandle = pi.hProcess;
     m_tempBinaryPath = tempBinaryPath;
 
@@ -269,15 +283,15 @@ void ProcessSpoofer::killAndCleanEntry(SpoofEntry &entry)
 
     // ── Clean up temporary binary if unlocked ──
     if (!entry.tempBinaryPath.isEmpty()) {
-        robustDelete(entry.tempBinaryPath, 3, 50);
+        robustDelete(entry.tempBinaryPath, 5, 50);
 
-        // Remove empty parent directories up to (not including) games/
-        QString gamesRoot = QCoreApplication::applicationDirPath() + "/games";
+        // Remove empty parent directories up to Orby/games/
+        QString gamesRoot = QStandardPaths::writableLocation(QStandardPaths::TempLocation) + "/Orby/games";
         QDir dir = QFileInfo(entry.tempBinaryPath).dir();
         while (dir.absolutePath() != gamesRoot
                && dir.absolutePath().startsWith(gamesRoot)) {
             QString p = dir.absolutePath();
-            if (!QDir().rmdir(p))    // only removes if empty
+            if (!QDir().rmdir(p))
                 break;
             dir.cdUp();
         }
