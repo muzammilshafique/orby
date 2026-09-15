@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.16)
-project(Orby VERSION 1.0 LANGUAGES CXX)
+project(Orby VERSION 1.0.0 LANGUAGES CXX)
 
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -122,4 +122,35 @@ if(UNIX AND NOT APPLE)
     install(FILES icons/orby.png
         DESTINATION ${CMAKE_INSTALL_DATADIR}/icons/hicolor/256x256/apps
     )
+
+    install(FILES LICENSE
+        DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/orby
+    )
 endif()
+
+# ── Packaging (CPack) ──
+if(UNIX AND NOT APPLE)
+    set(CPACK_PACKAGE_NAME "orby")
+    set(CPACK_PACKAGE_VENDOR "Muzammil Shafique")
+    set(CPACK_PACKAGE_DESCRIPTION_SUMMARY "Safe Discord quest game process spoofer")
+    set(CPACK_PACKAGE_HOMEPAGE_URL "https://github.com/muzammilshafique/orby")
+    set(CPACK_PACKAGE_CONTACT "Muzammil Shafique <muzu@duck.com>")
+    set(CPACK_RESOURCE_FILE_LICENSE "${CMAKE_CURRENT_SOURCE_DIR}/LICENSE")
+    set(CPACK_RESOURCE_FILE_README "${CMAKE_CURRENT_SOURCE_DIR}/README.md")
+    set(CPACK_PACKAGE_VERSION "${PROJECT_VERSION}")
+
+    # Debian (.deb) packaging
+    set(CPACK_DEB_COMPONENT_INSTALL OFF)
+    set(CPACK_DEBIAN_PACKAGE_NAME "orby")
+    set(CPACK_DEBIAN_PACKAGE_MAINTAINER "Muzammil Shafique <muzu@duck.com>")
+    set(CPACK_DEBIAN_PACKAGE_SECTION "utils")
+    set(CPACK_DEBIAN_PACKAGE_PRIORITY "optional")
+    set(CPACK_DEBIAN_PACKAGE_HOMEPAGE "https://github.com/muzammilshafique/orby")
+    set(CPACK_DEBIAN_PACKAGE_ARCHITECTURE "amd64")
+    set(CPACK_DEBIAN_FILE_NAME "DEB-DEFAULT")
+    set(CPACK_DEBIAN_PACKAGE_SHLIBDEPS ON)
+    set(CPACK_DEBIAN_PACKAGE_DEPENDS "libc6, libqt6core6 (>= 6.2.0) | libqt6core6t64 (>= 6.2.0), libqt6gui6 | libqt6gui6t64, libqt6widgets6 | libqt6widgets6t64, libqt6qml6 | libqt6qml6t64, libqt6quick6 | libqt6quick6t64, libqt6quickcontrols2-6 | libqt6quickcontrols2-6t64, libqt6network6 | libqt6network6t64, qml6-module-qtquick, qml6-module-qtquick-controls, qml6-module-qtquick-layouts, qml6-module-qtquick-window, qml6-module-qtquick-templates")
+
+    include(CPack)
+endif()
+
