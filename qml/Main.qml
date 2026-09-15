@@ -172,15 +172,34 @@ Window {
     // ════════════════════════════════════════════════════════════════
     //  Backend Instances
     // ════════════════════════════════════════════════════════════════
+    property string toastErrorMessage: ""
+
+    function showToastError(msg) {
+        toastErrorMessage = msg
+        errorToastTimer.restart()
+    }
+
+    Timer {
+        id: errorToastTimer
+        interval: 4500
+        onTriggered: toastErrorMessage = ""
+    }
+
     DiscordApi {
         id: discordApi
         Component.onCompleted: fetchGames()
-        onErrorOccurred: (msg) => console.warn("[DiscordApi]", msg)
+        onErrorOccurred: (msg) => {
+            console.warn("[DiscordApi]", msg)
+            showToastError(msg)
+        }
     }
 
     ProcessSpoofer {
         id: spoofer
-        onErrorOccurred: (msg) => console.warn("[Spoofer]", msg)
+        onErrorOccurred: (msg) => {
+            console.warn("[Spoofer]", msg)
+            showToastError(msg)
+        }
         onSpoofedProcessesChanged: {
             if (typeof trayManager !== "undefined") {
                 if (spoofer.isSpoofing && spoofer.spoofedProcesses.length > 0) {
@@ -1696,4 +1715,54 @@ Window {
             }
         }
     }
+
+    // ════════════════════════════════════════════════════════════════
+    //  Error Toast Notification Banner
+    // ════════════════════════════════════════════════════════════════
+    Rectangle {
+        id: errorToast
+        anchors.horizontalCenter: parent.horizontalCenter
+        anchors.bottom: parent.bottom
+        anchors.bottomMargin: toastErrorMessage ? 24 : -60
+        width: Math.min(parent.width - 40, errorText.implicitWidth + 56)
+        height: 44
+        radius: 22
+        color: md.isDark ? "#3E1E1E" : "#FFDADA"
+        border.color: md.isDark ? "#8C2F2F" : "#BA1A1A"
+        border.width: 1
+        opacity: toastErrorMessage ? 1.0 : 0.0
+        visible: opacity > 0
+        z: 99999
+
+        Behavior on anchors.bottomMargin { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
+        Behavior on opacity { NumberAnimation { duration: 200 } }
+
+        RowLayout {
+            anchors.fill: parent
+            anchors.leftMargin: 16
+            anchors.rightMargin: 16
+            spacing: 8
+
+            Text {
+                text: "error"
+                font.family: md.iconFontFamily
+                font.pixelSize: 18
+                color: md.isDark ? "#FFB4AB" : "#BA1A1A"
+                verticalAlignment: Text.AlignVCenter
+            }
+
+            Text {
+                id: errorText
+                text: toastErrorMessage
+                color: md.isDark ? "#FFDAD6" : "#410002"
+                font.family: md.fontFamily
+                font.pixelSize: 12
+                font.weight: Font.Medium
+                elide: Text.ElideRight
+                Layout.fillWidth: true
+                verticalAlignment: Text.AlignVCenter
+            }
+        }
+    }
 }
+
