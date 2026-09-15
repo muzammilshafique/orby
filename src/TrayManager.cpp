@@ -1,5 +1,6 @@
 #include "TrayManager.h"
 
+#include <QtGlobal>
 #include <QApplication>
 #include <QIcon>
 #include <QAction>
@@ -158,6 +159,7 @@ void TrayManager::updateTrayIcon()
 void TrayManager::setupThemeMonitoring()
 {
 #ifdef Q_OS_LINUX
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     // Listen to Qt styleHints for color scheme changes (FreeDesktop portal / KDE / GNOME)
     if (QGuiApplication::styleHints()) {
         connect(QGuiApplication::styleHints(), &QStyleHints::colorSchemeChanged,
@@ -166,6 +168,7 @@ void TrayManager::setupThemeMonitoring()
                     updateTrayIcon();
                 });
     }
+#endif
 
     // Monitor application-wide palette and theme change events
     qApp->installEventFilter(this);
@@ -188,6 +191,7 @@ QIcon TrayManager::getThemedTrayIcon() const
 #ifdef Q_OS_LINUX
     bool isDark = true;
 
+#if QT_VERSION >= QT_VERSION_CHECK(6, 5, 0)
     // 1. Query Qt style hints (connected via FreeDesktop portal / Wayland)
     if (QGuiApplication::styleHints()) {
         auto scheme = QGuiApplication::styleHints()->colorScheme();
@@ -204,6 +208,10 @@ QIcon TrayManager::getThemedTrayIcon() const
         QColor windowColor = QApplication::palette().color(QPalette::Window);
         isDark = (windowColor.lightness() < 128);
     }
+#else
+    QColor windowColor = QApplication::palette().color(QPalette::Window);
+    isDark = (windowColor.lightness() < 128);
+#endif
 
     if (isDark) {
         // Dark theme: panel background is dark, show crisp white icon
