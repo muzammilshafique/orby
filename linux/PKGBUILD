@@ -1,0 +1,37 @@
+# Maintainer: Muzammil Shafique <contact@orby.local>
+pkgname=orby
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Sleek, native desktop application to safely spoof background game processes for Discord Quests"
+arch=('x86_64')
+url="https://github.com/muzammilshafique/orby"
+license=('MIT')
+depends=('qt6-base' 'qt6-declarative')
+makedepends=('cmake' 'ninja' 'gcc')
+
+build() {
+    if [ -d "$srcdir/$pkgname-$pkgver" ]; then
+        cd "$srcdir/$pkgname-$pkgver"
+    elif [ -f "$startdir/../CMakeLists.txt" ]; then
+        cd "$startdir/.."
+    elif [ -f "$PWD/CMakeLists.txt" ]; then
+        cd "$PWD"
+    fi
+
+    cmake -B build \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DCMAKE_INSTALL_PREFIX=/usr
+    cmake --build build -j"$(nproc)"
+}
+
+package() {
+    if [ -d "$srcdir/$pkgname-$pkgver" ]; then
+        cd "$srcdir/$pkgname-$pkgver"
+    elif [ -f "$startdir/../CMakeLists.txt" ]; then
+        cd "$startdir/.."
+    elif [ -f "$PWD/CMakeLists.txt" ]; then
+        cd "$PWD"
+    fi
+
+    DESTDIR="$pkgdir" cmake --install build
+}
