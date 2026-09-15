@@ -30,8 +30,11 @@ compile_commands.json
 *.pdb
 *.out
 
-# Specific executables
-appQuestify
-Questify-Linux
-Orby-Linux
-aqtinstall.log
+# Packaging and distribution outputs
+dist/
+build-*/
+*.pkg.tar.zst
+*.deb
+*.AppImage
+*.zip
+
