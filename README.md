@@ -41,7 +41,35 @@ To build or run **Orby**, your system must have the Qt6 development packages and
 
 ---
 
-## 🛠️ Build Instructions
+## 🚀 Installation & Packages
+
+Pre-built binaries and native packages are available on the [Releases](https://github.com/muzammilshafique/orby/releases) page for each release:
+
+### Linux Packages
+
+- **Arch Linux (Pacman):**
+  Download the `.pkg.tar.zst` release package and install via:
+  ```bash
+  sudo pacman -U ./orby*x86_64.pkg.tar.zst
+  ```
+  *(Or build and install locally via `makepkg -si` in `linux/`)*
+
+- **Debian / Ubuntu (.deb):**
+  Download the `.deb` release package and install via:
+  ```bash
+  sudo apt install ./orby*amd64.deb
+  ```
+
+- **Universal AppImage:**
+  Download the `.AppImage` file, make it executable, and run:
+  ```bash
+  chmod +x ./Orby*x86_64.AppImage
+  ./Orby*x86_64.AppImage
+  ```
+
+---
+
+## 🛠️ Build From Source
 
 ### Linux (Arch / Ubuntu)
 
@@ -65,18 +93,23 @@ To build or run **Orby**, your system must have the Qt6 development packages and
    ./linux/uninstall.sh
    ```
 
-### Manual Build (Without Installing)
+### Manual Build & Packaging
 
-If you prefer to compile the binary manually without installing the desktop entry:
+If you prefer to compile the binary manually or build distro packages:
 
 ```bash
 git clone https://github.com/muzammilshafique/orby.git
 cd orby
+
+# Standard CMake Build
 cmake -B build -DCMAKE_BUILD_TYPE=Release
 cmake --build build -j$(nproc)
 
-# Run the compiled binary
-./build/orby
+# Or build native Arch Linux pacman package:
+./linux/package-arch.sh
+
+# Or build native Debian / Ubuntu .deb package:
+./linux/package-deb.sh
 ```
 
 ### Windows
@@ -110,9 +143,9 @@ Orby/
 ├── qml/                  # UI components and views (Qt Quick / QML)
 ├── screenshots/          # Showcase images
 ├── icons/                # SVG application icon
-├── linux/                # Desktop entry, install, and uninstall scripts
+├── linux/                # Desktop entry, PKGBUILD, install/uninstall & packaging scripts
 ├── windows/              # Minimal Win32 dummy process for Windows spoofing
-├── CMakeLists.txt        # CMake build configuration
+├── CMakeLists.txt        # CMake build & CPack packaging configuration
 ├── README.md             # Project documentation
 ├── LICENSE               # MIT License file
 └── .gitignore            # Git ignore file for build artifacts
