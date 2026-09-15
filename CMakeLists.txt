@@ -86,12 +86,14 @@ if(WIN32)
     )
     target_link_libraries(dummy PRIVATE user32 gdi32 shell32)
 
-    # Size-optimized compiler flags for dummy
+    # Size-optimized standalone compiler flags for dummy (zero external runtime DLL dependencies)
     if(MSVC)
-        target_compile_options(dummy PRIVATE $<$<CONFIG:Release>:/Os>)
+        set_property(TARGET dummy PROPERTY MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+        target_compile_options(dummy PRIVATE $<$<CONFIG:Release>:/Os /GS- /Gy>)
+        target_link_options(dummy PRIVATE $<$<CONFIG:Release>:/OPT:REF /OPT:ICF>)
     else()
         target_compile_options(dummy PRIVATE -Os -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections)
-        target_link_options(dummy PRIVATE -Wl,--gc-sections -s)
+        target_link_options(dummy PRIVATE -Wl,--gc-sections -static-libgcc -static-libstdc++ -s)
     endif()
 
 else()
