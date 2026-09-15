@@ -23,11 +23,11 @@ static const wchar_t* findSubstringW(const wchar_t* str, const wchar_t* sub) {
 }
 
 static void toggleWindow(HWND hWnd) {
-    if (IsWindowVisible(hWnd)) {
-        ShowWindow(hWnd, SW_HIDE);
+    if (IsWindowVisible(hWnd) && !IsIconic(hWnd)) {
+        ShowWindow(hWnd, SW_MINIMIZE);
     } else {
-        ShowWindow(hWnd, SW_SHOW);
         ShowWindow(hWnd, SW_RESTORE);
+        ShowWindow(hWnd, SW_SHOW);
         SetForegroundWindow(hWnd);
     }
 }
@@ -55,7 +55,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
                                      10, 48, 395, 24, hWnd, NULL, NULL, NULL);
 
         HWND hSub = CreateWindowExW(0, L"STATIC",
-                                    L"Simulating background game process for Discord Quests.\nYou can minimize this window to the tray or keep it open.",
+                                    L"Simulating background game process for Discord Quests.\nYou can minimize this window or keep it open.",
                                     WS_VISIBLE | WS_CHILD | SS_CENTER,
                                     15, 84, 385, 45, hWnd, NULL, NULL, NULL);
 
@@ -85,7 +85,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
             GetCursorPos(&cur);
             HMENU hMenu = CreatePopupMenu();
             InsertMenuW(hMenu, 0, MF_BYPOSITION | MF_STRING, ID_TRAY_TOGGLE,
-                        IsWindowVisible(hWnd) ? L"Hide" : L"Show");
+                        (IsWindowVisible(hWnd) && !IsIconic(hWnd)) ? L"Minimize" : L"Restore");
             InsertMenuW(hMenu, 1, MF_BYPOSITION | MF_SEPARATOR, 0, NULL);
             InsertMenuW(hMenu, 2, MF_BYPOSITION | MF_STRING, ID_TRAY_EXIT, L"Exit");
             SetForegroundWindow(hWnd);
@@ -113,8 +113,7 @@ static LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM l
     }
 
     case WM_CLOSE: {
-        // Minimize to tray instead of quitting unexpectedly
-        ShowWindow(hWnd, SW_HIDE);
+        ShowWindow(hWnd, SW_MINIMIZE);
         return 0;
     }
 
@@ -169,6 +168,7 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     if (!hAppIcon) hAppIcon = LoadIconW(NULL, (LPCWSTR)IDI_APPLICATION);
 
     WNDCLASSW wc = { 0 };
+    wc.style         = CS_HREDRAW | CS_VREDRAW;
     wc.lpfnWndProc   = WndProc;
     wc.hInstance     = hInstance;
     wc.lpszClassName = CLASS_NAME;
@@ -178,7 +178,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
     RegisterClassW(&wc);
 
     // Create a visible top-level window titled with the game's name.
-    // Discord detects active games via EnumWindows + GetWindowTextW on visible windows.
     HWND hWnd = CreateWindowExW(
         0,
         CLASS_NAME,
@@ -191,7 +190,6 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
     if (!hWnd) return 0;
 
-    // Show and update window so it is immediately visible to Discord's scanner
     ShowWindow(hWnd, SW_SHOWNORMAL);
     UpdateWindow(hWnd);
 
