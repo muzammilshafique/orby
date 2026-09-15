@@ -1,6 +1,6 @@
 # Maintainer: Muzammil Shafique <contact@orby.local>
 pkgname=orby
-pkgver=1.0.0
+pkgver=1.1.2
 pkgrel=1
 pkgdesc="Sleek, native desktop application to safely spoof background game processes for Discord Quests"
 arch=('x86_64')
