@@ -165,6 +165,11 @@ if [[ "$PREFIX" == "$HOME/.local" || "$PREFIX" != "/usr" && "$PREFIX" != "/usr/l
 fi
 log_ok "Installed desktop entry to $APP_DIR/orby.desktop"
 
+# Install License
+if [[ -f "LICENSE" ]]; then
+    install -Dm644 "LICENSE" "$PREFIX/share/licenses/orby/LICENSE" 2>/dev/null || true
+fi
+
 # Ensure hicolor icon theme index exists so cache update succeeds
 if [[ ! -f "$ICON_THEME_DIR/index.theme" ]]; then
     if [[ -f "/usr/share/icons/hicolor/index.theme" ]]; then
