@@ -165,6 +165,8 @@ Window {
         color: iconColor
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter
+        renderType: Text.QtRendering
+        antialiasing: true
     }
 
     // ════════════════════════════════════════════════════════════════
@@ -343,23 +345,30 @@ Window {
                 }
             }
 
-            // Reload / Refresh Library Button
+            // Spring spacer pushing refresh button to the far right corner
+            Item { Layout.fillWidth: true }
+
+            // Reload / Refresh Library Button (Top Right Corner)
             Rectangle {
                 id: refreshBtn
-                width: 40
-                height: 40
-                radius: 20
+                width: 38
+                height: 38
+                radius: 19
                 color: refreshMouse.containsPress ? md.surfaceContainerHighest : (refreshMouse.containsMouse ? md.surfaceContainerHigh : "transparent")
                 border.color: refreshMouse.containsMouse ? md.outlineVariant : "transparent"
                 border.width: 1
-                Layout.alignment: Qt.AlignVCenter
+                Layout.alignment: Qt.AlignTop | Qt.AlignRight
 
                 MaterialIcon {
                     id: refreshIcon
                     anchors.centerIn: parent
                     name: "refresh"
-                    size: 22
+                    size: 20
                     iconColor: refreshMouse.containsMouse ? md.primary : md.surfaceVariantFg
+                    renderType: Text.QtRendering
+                    antialiasing: true
+                    layer.enabled: isRefreshingOrLoading
+                    layer.smooth: true
 
                     RotationAnimator on rotation {
                         running: isRefreshingOrLoading
