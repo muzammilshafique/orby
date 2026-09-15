@@ -27,7 +27,7 @@ int main(int argc, char *argv[]) {
 #ifdef Q_OS_WIN
   defaultFont.setHintingPreference(QFont::PreferNoHinting);
   defaultFont.setStyleStrategy(QFont::PreferAntialias);
-  QQuickWindow::setTextRenderType(QQuickWindow::NativeTextRendering);
+  QQuickWindow::setTextRenderType(QQuickWindow::QtTextRendering);
 #endif
   app.setFont(defaultFont);
 
